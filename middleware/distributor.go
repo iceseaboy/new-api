@@ -15,6 +15,7 @@ import (
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/relay/channel/seedance"
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
@@ -318,6 +319,19 @@ func getModelRequest(c *gin.Context) (*ModelRequest, bool, error) {
 		}
 		if _, ok := c.Get("relay_mode"); !ok {
 			c.Set("relay_mode", relayMode)
+		}
+	} else if strings.HasPrefix(c.Request.URL.Path, "/v1/seedance/") {
+		// Seedance 素材 API：免费且与具体生成模型无关，
+		// 各端点共用同一个虚拟模型，仅用于令牌模型权限校验与渠道选路
+		vendorPath := c.Request.URL.Path
+		switch {
+		case strings.HasSuffix(vendorPath, "/asset/CreateAssetGroup"),
+			strings.HasSuffix(vendorPath, "/asset/CreateAsset"),
+			strings.HasSuffix(vendorPath, "/asset/GetAsset"),
+			vendorPath == "/v1/seedance/assets":
+			modelRequest.Model = seedance.ModelSeedanceAsset
+		default:
+			return nil, false, fmt.Errorf("未知的 Seedance 素材端点: %s", vendorPath)
 		}
 	} else if strings.HasPrefix(c.Request.URL.Path, "/v1beta/models/") || strings.HasPrefix(c.Request.URL.Path, "/v1/models/") {
 		// Gemini API 路径处理: /v1beta/models/gemini-2.0-flash:generateContent
