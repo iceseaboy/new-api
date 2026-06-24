@@ -24,19 +24,29 @@ type videoPricing struct {
 	highResVideo float64 // 1080p + 含视频
 }
 
-var videoPricingMap = map[string]videoPricing{
-	"doubao-seedance-2-0-260128": {
+// seedance2Pricing / seedance2FastPricing 为 Seedance 2.0 标准版/快速版的定价。
+// 火山原生模型 id（doubao-seedance-2-0-260128）与 zlhub 对外模型名（doubao-seedance-2.0）
+// 指向同一档价格，这里共用同一份定价值，避免两个别名漂移。
+var (
+	seedance2Pricing = videoPricing{
 		base:         46,
 		lowResVideo:  28,
 		supports1080: true,
 		highResNoVid: 51,
 		highResVideo: 31,
-	},
-	"doubao-seedance-2-0-fast-260128": {
+	}
+	seedance2FastPricing = videoPricing{
 		base:        37,
 		lowResVideo: 22,
 		// 不支持 1080p 输出
-	},
+	}
+)
+
+var videoPricingMap = map[string]videoPricing{
+	"doubao-seedance-2-0-260128":      seedance2Pricing,
+	"doubao-seedance-2.0":             seedance2Pricing,
+	"doubao-seedance-2-0-fast-260128": seedance2FastPricing,
+	"doubao-seedance-2.0-fast":        seedance2FastPricing,
 }
 
 // GetVideoBillingRatio 返回相对基准价(base)的计费比率，用于乘到基础额度上。
