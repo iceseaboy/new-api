@@ -76,6 +76,8 @@ func (t *Task) GetData(v any) error {
 
 type Properties struct {
 	Input             string `json:"input"`
+	RequestId         string `json:"request_id,omitempty"` // new-api 平台请求 ID
+	TokenName         string `json:"token_name,omitempty"` // 发起请求的令牌名称
 	UpstreamModelName string `json:"upstream_model_name,omitempty"`
 	OriginModelName   string `json:"origin_model_name,omitempty"`
 }

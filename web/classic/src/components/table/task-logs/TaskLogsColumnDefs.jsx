@@ -63,6 +63,9 @@ const colors = [
   'yellow',
 ];
 
+// 输入/输出列宽度，与结束时间列保持一致；超出内容省略，点击弹窗看全文
+const IO_COLUMN_WIDTH = 170;
+
 // Render functions
 const renderTimestamp = (timestampInSeconds) => {
   const date = new Date(timestampInSeconds * 1000); // 从秒转换为毫秒
@@ -255,6 +258,7 @@ export const getTaskLogsColumns = ({
       key: COLUMN_KEYS.FINISH_TIME,
       title: t('结束时间'),
       dataIndex: 'finish_time',
+      width: IO_COLUMN_WIDTH,
       render: (text, record, index) => {
         return <div>{text ? renderTimestamp(text) : '-'}</div>;
       },
@@ -331,18 +335,51 @@ export const getTaskLogsColumns = ({
       },
     },
     {
-      key: COLUMN_KEYS.TASK_ID,
-      title: t('任务ID'),
-      dataIndex: 'task_id',
-      render: (text, record, index) => {
+      key: COLUMN_KEYS.INPUT,
+      title: t('输入'),
+      dataIndex: 'properties',
+      width: IO_COLUMN_WIDTH,
+      render: (properties, record, index) => {
+        const input = properties?.input;
+        if (!input) return '-';
+        let pretty = input;
+        try {
+          pretty = JSON.stringify(JSON.parse(input), null, 2);
+        } catch (e) {
+          // 非 JSON，原样展示
+        }
         return (
           <Typography.Text
-            ellipsis={{ showTooltip: true }}
-            onClick={() => {
-              openContentModal(JSON.stringify(record, null, 2));
-            }}
+            ellipsis={{ showTooltip: false }}
+            style={{ maxWidth: IO_COLUMN_WIDTH - 12, cursor: 'pointer' }}
+            onClick={() => openContentModal(pretty)}
           >
-            <div>{text}</div>
+            {input}
+          </Typography.Text>
+        );
+      },
+    },
+    {
+      key: COLUMN_KEYS.OUTPUT,
+      title: t('输出'),
+      dataIndex: 'data',
+      width: IO_COLUMN_WIDTH,
+      render: (data, record, index) => {
+        if (
+          data == null ||
+          (typeof data === 'object' && Object.keys(data).length === 0)
+        ) {
+          return '-';
+        }
+        const pretty = JSON.stringify(data, null, 2);
+        const preview = typeof data === 'string' ? data : JSON.stringify(data);
+        return (
+          <Typography.Text
+            ellipsis={{ showTooltip: false }}
+            style={{ maxWidth: IO_COLUMN_WIDTH - 12, cursor: 'pointer' }}
+            onClick={() => openContentModal(pretty)}
+          >
+            {preview}
           </Typography.Text>
         );
       },
@@ -378,6 +415,87 @@ export const getTaskLogsColumns = ({
               />
             )}
           </div>
+        );
+      },
+    },
+    {
+      key: COLUMN_KEYS.REQUEST_ID,
+      title: t('请求ID'),
+      dataIndex: 'properties',
+      render: (properties, record, index) => {
+        const rid = properties?.request_id;
+        if (!rid) return '-';
+        return (
+          <Typography.Text
+            ellipsis={{ showTooltip: true }}
+            style={{ maxWidth: 150, cursor: 'pointer' }}
+            onClick={() => copyText(rid)}
+          >
+            {rid}
+          </Typography.Text>
+        );
+      },
+    },
+    {
+      key: COLUMN_KEYS.UPSTREAM_TASK_ID,
+      title: t('上游任务ID'),
+      dataIndex: 'upstream_task_id',
+      render: (text, record, index) => {
+        if (!text) return '-';
+        return (
+          <Typography.Text
+            ellipsis={{ showTooltip: true }}
+            style={{ maxWidth: 150, cursor: 'pointer' }}
+            onClick={() => copyText(text)}
+          >
+            {text}
+          </Typography.Text>
+        );
+      },
+    },
+    {
+      key: COLUMN_KEYS.TASK_ID,
+      title: t('任务ID'),
+      dataIndex: 'task_id',
+      render: (text, record, index) => {
+        return (
+          <Typography.Text
+            ellipsis={{ showTooltip: true }}
+            style={{ maxWidth: 150, cursor: 'pointer' }}
+            onClick={() => {
+              openContentModal(JSON.stringify(record, null, 2));
+            }}
+          >
+            <div>{text}</div>
+          </Typography.Text>
+        );
+      },
+    },
+    {
+      key: COLUMN_KEYS.TOKEN_NAME,
+      title: t('令牌名称'),
+      dataIndex: 'properties',
+      render: (properties, record, index) => {
+        const name = properties?.token_name;
+        if (!name) return '-';
+        return (
+          <Tag color='white' shape='circle' onClick={() => copyText(name)}>
+            {name}
+          </Tag>
+        );
+      },
+    },
+    {
+      key: COLUMN_KEYS.CONSUMED_TOKENS,
+      title: t('消耗token'),
+      dataIndex: 'data',
+      render: (data, record, index) => {
+        const tokens =
+          data?.usage?.total_tokens ?? data?.usage?.completion_tokens;
+        return tokens != null ? (
+          <Typography.Text>{Number(tokens).toLocaleString()}</Typography.Text>
+        ) : (
+          '-'
         );
       },
     },
