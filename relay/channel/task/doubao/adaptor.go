@@ -113,10 +113,70 @@ func (a *TaskAdaptor) Init(info *relaycommon.RelayInfo) {
 	a.apiKey = info.ApiKey
 }
 
-// ValidateRequestAndSetAction parses body, validates fields and sets default action.
+// ValidateRequestAndSetAction parses body, validates fields and sets action.
 func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycommon.RelayInfo) (taskErr *dto.TaskError) {
-	// Accept only POST /v1/video/generations as "generate" action.
-	return relaycommon.ValidateBasicTaskRequest(c, info, constant.TaskActionGenerate)
+	// 按 content 推断任务场景，使日志/前端正确区分 文生/图生/首尾帧/参考生视频，
+	// 而不是一律标成 generate（图生视频）。
+	action := inferDoubaoAction(c)
+	return relaycommon.ValidateBasicTaskRequest(c, info, action)
+}
+
+// inferDoubaoAction 解析请求体并推断任务场景对应的 action。
+// 解析失败时回退到 generate，由后续 ValidateBasicTaskRequest 统一报错。
+func inferDoubaoAction(c *gin.Context) string {
+	var req relaycommon.TaskSubmitReq
+	if err := common.UnmarshalBodyReusable(c, &req); err != nil {
+		return constant.TaskActionGenerate
+	}
+	return inferActionFromRequest(&req)
+}
+
+// inferActionFromRequest 根据输入的图片/视频/音频及其 role 推断场景：
+//   - 含参考图/视频/音频 → referenceGenerate（参照生视频）
+//   - 首帧 + 尾帧        → firstTailGenerate（首尾生视频）
+//   - 仅首帧 / 旧式单图   → generate（图生视频）
+//   - 仅文本             → textGenerate（文生视频）
+//
+// 三类带图场景互斥（见上游文档），优先级 参考 > 首尾帧 > 首帧。
+func inferActionFromRequest(req *relaycommon.TaskSubmitReq) string {
+	var firstFrame, lastFrame, refImage, refVideo, refAudio int
+
+	if content, ok := req.Metadata["content"].([]interface{}); ok {
+		for _, item := range content {
+			m, ok := item.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			typ, _ := m["type"].(string)
+			role, _ := m["role"].(string)
+			switch typ {
+			case "video_url":
+				refVideo++
+			case "audio_url":
+				refAudio++
+			case "image_url":
+				switch role {
+				case "last_frame":
+					lastFrame++
+				case "reference_image":
+					refImage++
+				default: // first_frame 或不填
+					firstFrame++
+				}
+			}
+		}
+	}
+
+	switch {
+	case refVideo > 0 || refAudio > 0 || refImage > 0:
+		return constant.TaskActionReferenceGenerate
+	case firstFrame > 0 && lastFrame > 0:
+		return constant.TaskActionFirstTailGenerate
+	case firstFrame > 0 || lastFrame > 0 || len(req.Images) > 0:
+		return constant.TaskActionGenerate
+	default:
+		return constant.TaskActionTextGenerate
+	}
 }
 
 // BuildRequestURL constructs the upstream URL.
