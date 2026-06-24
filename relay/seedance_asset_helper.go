@@ -2,7 +2,6 @@ package relay
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -89,7 +88,7 @@ func SeedanceAssetHelper(c *gin.Context, info *relaycommon.RelayInfo) *types.New
 	}
 
 	// ---- 构建上游请求 ----
-	targetURL, err := buildSeedanceAssetURL(c, info)
+	targetURL, err := buildSeedanceAssetURL(info, endpoint)
 	if err != nil {
 		return types.NewError(err, types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
 	}
@@ -112,7 +111,10 @@ func SeedanceAssetHelper(c *gin.Context, info *relaycommon.RelayInfo) *types.New
 	}
 
 	// 设置请求头；渠道可通过 header_override 配置自定义鉴权头（支持 {api_key} 占位符）
+	// zlhub 资产管理 API 用 X-Access-Token 鉴权（配 {"X-Access-Token":"{api_key}"}），
+	// 并要求每次请求带唯一的 32 位十六进制 X-Track-Id 便于排障。
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Track-Id", common.GetUUID())
 	req.Header.Set("Authorization", "Bearer "+info.ApiKey)
 	headerOverride, err := channel.ResolveHeaderOverride(info, c)
 	if err != nil {
@@ -145,43 +147,39 @@ func SeedanceAssetHelper(c *gin.Context, info *relaycommon.RelayInfo) *types.New
 			types.ErrorCodeBadResponseBody, types.ErrOptionWithSkipRetry())
 	}
 
-	// HTTP 非 2xx → 可重试错误
+	// ---- 上游错误响应（HTTP 4xx/5xx → {Code, Message, TrackId}） ----
+	// zlhub 用 HTTP 状态码区分成功/失败：成功 200 返回 {ResponseMetadata, Result}，
+	// 失败返回顶层 {Code, Message}。这里透出上游真实错误，并按状态码决定是否重试。
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		logger.LogError(c, fmt.Sprintf("Seedance 上游返回 HTTP %d, body=%s", resp.StatusCode, string(body)))
+		code, msg := extractSeedanceAssetError(body)
+		logger.LogError(c, fmt.Sprintf("Seedance 素材上游错误: endpoint=%s, http=%d, code=%s, msg=%s, body=%s",
+			endpoint, resp.StatusCode, code, msg, string(body)))
+		detail := msg
+		if code != "" {
+			if detail != "" {
+				detail = code + ": " + detail
+			} else {
+				detail = code
+			}
+		}
+		if detail == "" {
+			detail = fmt.Sprintf("HTTP %d", resp.StatusCode)
+		}
+		// 5xx（如 502 VolcengineCallFailed）为上游瞬时异常，可重试换渠道；
+		// 4xx（参数/权限/限流）为确定性错误，不重试，原样透出。
+		if resp.StatusCode >= 500 {
+			return types.NewErrorWithStatusCode(
+				fmt.Errorf("上游服务异常: %s", detail),
+				types.ErrorCodeBadResponseStatusCode, resp.StatusCode)
+		}
+		errCode := types.ErrorCodeInvalidRequest
+		if resp.StatusCode == http.StatusForbidden {
+			errCode = types.ErrorCodeAccessDenied
+		}
 		return types.NewErrorWithStatusCode(
-			fmt.Errorf("Seedance 上游返回 HTTP %d", resp.StatusCode),
-			types.ErrorCodeBadResponseStatusCode,
-			resp.StatusCode,
-		)
+			fmt.Errorf("%s", detail), errCode, resp.StatusCode, types.ErrOptionWithSkipRetry())
 	}
 	logger.LogInfo(c, fmt.Sprintf("Seedance 上游响应 HTTP %d, endpoint=%s, body=%s", resp.StatusCode, endpoint, string(body)))
-
-	// ---- 上游外壳内错误拦截 ----
-	// HTTP 2xx 只能证明 framework 层传输成功。上游的外壳 {state, data, error}
-	// 可能再嵌两种失败：
-	//   - framework 级：state != 1 或 error 非空（例如 {"state":0,"data":null,"error":["ID不能为空"]}）
-	//   - 业务级：     state == 1，但 data 内嵌 {Code, Message, Data:null}（例如 URL 下载失败）
-	// 不先拦截这两种，后续 handleCreateXxx 的 "Id 为空" 分支会把它们误报成
-	// "上游响应格式异常"，掩盖上游真实错误。
-
-	if fwErr, isFwErr := extractSeedanceFrameworkError(body); isFwErr {
-		logger.LogError(c, fmt.Sprintf("Seedance 上游 framework 错误: endpoint=%s, error=%s", endpoint, fwErr))
-		return types.NewErrorWithStatusCode(
-			fmt.Errorf("上游 framework 错误: %s", fwErr),
-			types.ErrorCodeInvalidRequest,
-			http.StatusBadRequest,
-			types.ErrOptionWithSkipRetry())
-	}
-
-	if bizCode, bizMsg, isBizErr := extractSeedanceBusinessError(body); isBizErr {
-		logger.LogError(c, fmt.Sprintf("Seedance 上游业务错误: endpoint=%s, Code=%s, Message=%s",
-			endpoint, bizCode, bizMsg))
-		return types.NewErrorWithStatusCode(
-			fmt.Errorf("%s: %s", bizCode, bizMsg),
-			types.ErrorCodeInvalidRequest,
-			http.StatusBadRequest,
-			types.ErrOptionWithSkipRetry())
-	}
 
 	// ---- 上游成功后：入 DB（创建类端点） ----
 	switch endpoint {
@@ -210,19 +208,17 @@ func SeedanceAssetHelper(c *gin.Context, info *relaycommon.RelayInfo) *types.New
 
 // ---- URL 映射 ----
 
-// buildSeedanceAssetURL 构建上游请求 URL
-// /v1/seedance/asset/CreateAssetGroup → {base_url}/asset/CreateAssetGroup
-func buildSeedanceAssetURL(c *gin.Context, info *relaycommon.RelayInfo) (string, error) {
+// buildSeedanceAssetURL 构建上游请求 URL。
+// zlhub 资产管理 API 用查询参数 Action 指定操作：POST {base_url}?Action={endpoint}
+// base_url 应配置为完整路径，如 https://asset.zlhub.cn/api/asset-management
+func buildSeedanceAssetURL(info *relaycommon.RelayInfo, endpoint string) (string, error) {
 	baseURL := info.ChannelBaseUrl
 	if baseURL == "" {
 		return "", fmt.Errorf("Seedance asset channel base URL 未配置")
 	}
 	baseURL = strings.TrimRight(baseURL, "/")
 
-	// /v1/seedance/asset/CreateAssetGroup → /asset/CreateAssetGroup
-	vendorPath := strings.Replace(c.Request.URL.Path, "/v1/seedance", "", 1)
-
-	return baseURL + vendorPath, nil
+	return baseURL + "?Action=" + endpoint, nil
 }
 
 // ---- 响应写入 ----
@@ -250,8 +246,8 @@ func writeSeedanceResponse(c *gin.Context, resp *http.Response, body []byte) {
 // ---- Ownership 处理 ----
 
 func handleCreateAssetGroup(c *gin.Context, userId, tokenId, channelId int, respBody []byte) *types.NewAPIError {
-	var outer dto.SeedanceAPIResponse[dto.SeedanceCreateAssetGroupResponse]
-	if common.Unmarshal(respBody, &outer) != nil || outer.Data.Id == "" {
+	var outer dto.SeedanceAssetEnvelope[dto.SeedanceCreateAssetGroupResult]
+	if common.Unmarshal(respBody, &outer) != nil || outer.Result.Id == "" {
 		logger.LogError(c, fmt.Sprintf("CreateAssetGroup: 无法从上游响应解析 Id, upstream_body=%s", string(respBody)))
 		return types.NewError(fmt.Errorf("上游响应格式异常"),
 			types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
@@ -261,26 +257,26 @@ func handleCreateAssetGroup(c *gin.Context, userId, tokenId, channelId int, resp
 		UserId:       userId,
 		TokenId:      tokenId,
 		ChannelId:    channelId,
-		AssetGroupId: outer.Data.Id,
+		AssetGroupId: outer.Result.Id,
 		CreatedAt:    time.Now().Unix(),
 	}
 	alreadyExists, err := group.Insert()
 	if err != nil {
 		logger.LogError(c, fmt.Sprintf("写入素材组 ownership 失败: group_id=%s, user_id=%d, err=%s",
-			outer.Data.Id, userId, err.Error()))
+			outer.Result.Id, userId, err.Error()))
 		return types.NewError(fmt.Errorf("素材组归属记录失败，请联系管理员"),
 			types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
 	}
 	if alreadyExists {
-		logger.LogWarn(c, fmt.Sprintf("素材组已存在（幂等）: group_id=%s, user_id=%d", outer.Data.Id, userId))
+		logger.LogWarn(c, fmt.Sprintf("素材组已存在（幂等）: group_id=%s, user_id=%d", outer.Result.Id, userId))
 	}
 
 	return nil
 }
 
 func handleCreateAsset(c *gin.Context, userId, tokenId, channelId int, respBody []byte, groupId, assetType string) *types.NewAPIError {
-	var outer dto.SeedanceAPIResponse[dto.SeedanceCreateAssetResponse]
-	if common.Unmarshal(respBody, &outer) != nil || outer.Data.Id == "" {
+	var outer dto.SeedanceAssetEnvelope[dto.SeedanceCreateAssetResult]
+	if common.Unmarshal(respBody, &outer) != nil || outer.Result.Id == "" {
 		logger.LogError(c, fmt.Sprintf("CreateAsset: 无法从上游响应解析 Id, upstream_body=%s", string(respBody)))
 		return types.NewError(fmt.Errorf("上游响应格式异常"),
 			types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
@@ -291,7 +287,7 @@ func handleCreateAsset(c *gin.Context, userId, tokenId, channelId int, respBody 
 		UserId:       userId,
 		TokenId:      tokenId,
 		ChannelId:    channelId,
-		AssetId:      outer.Data.Id,
+		AssetId:      outer.Result.Id,
 		AssetGroupId: groupId,
 		AssetType:    strings.ToLower(assetType),
 		CreatedAt:    time.Now().Unix(),
@@ -299,65 +295,29 @@ func handleCreateAsset(c *gin.Context, userId, tokenId, channelId int, respBody 
 	alreadyExists, err := asset.Insert()
 	if err != nil {
 		logger.LogError(c, fmt.Sprintf("写入素材 ownership 失败: asset_id=%s, group_id=%s, user_id=%d, err=%s",
-			outer.Data.Id, groupId, userId, err.Error()))
+			outer.Result.Id, groupId, userId, err.Error()))
 		return types.NewError(fmt.Errorf("素材归属记录失败，请联系管理员"),
 			types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
 	}
 	if alreadyExists {
 		logger.LogWarn(c, fmt.Sprintf("素材已存在（幂等）: asset_id=%s, group_id=%s, user_id=%d",
-			outer.Data.Id, groupId, userId))
+			outer.Result.Id, groupId, userId))
 	}
 
 	return nil
 }
 
 // ---- 上游错误检测 ----
-//
-// 上游 Seedance Asset API 的外壳 {"state":1,"data":{...},"error":null} 可能
-// 出现三种形态（详见 dto.SeedanceAPIResponse 的文档注释）。这里抽出两个专职
-// 函数，用于在主 helper 里按优先级拦截：
-//   1. extractSeedanceFrameworkError → 形态 3（state!=1 或 error 非空）
-//   2. extractSeedanceBusinessError  → 形态 2（state=1 但 data 内嵌业务错误）
-//
-// 设计意图是让业务错误和 framework 错误都能透出上游的真实错误消息给调用方，
-// 避免被 handleCreateAsset/handleCreateAssetGroup 里"Id 为空 → 上游响应格式异常"
-// 的兜底分支吞掉。
 
-// extractSeedanceFrameworkError 检测 framework 级错误（形态 3）。
-// 返回 (错误消息, true) 如果命中；否则 ("", false)。
-func extractSeedanceFrameworkError(respBody []byte) (string, bool) {
-	// 用 json.RawMessage 作为 data 的 T，这样不管 data 是什么 shape 都不会
-	// 在 Unmarshal 阶段失败，让检测函数对任何 data shape 都鲁棒。
-	var outer dto.SeedanceAPIResponse[json.RawMessage]
-	if common.Unmarshal(respBody, &outer) != nil {
-		return "", false
+// extractSeedanceAssetError 从 zlhub 错误响应体解析 {Code, Message}。
+// 上游失败时 HTTP 为 4xx/5xx，响应体形如 {"Code":"GroupNotOwned","Message":"...","TrackId":"..."}。
+// 解析失败时返回空串，调用方会回退到 HTTP 状态码描述。
+func extractSeedanceAssetError(body []byte) (code, message string) {
+	var e dto.SeedanceAssetError
+	if common.Unmarshal(body, &e) == nil {
+		return e.Code, e.Message
 	}
-	if !outer.IsFrameworkError() {
-		return "", false
-	}
-	msg := outer.ErrorMessage()
-	if msg == "" {
-		msg = fmt.Sprintf("state=%d", outer.State)
-	}
-	return msg, true
-}
-
-// extractSeedanceBusinessError 检测业务级错误（形态 2）：state=1 但 data 里
-// 嵌了 {Code, Message, Data:null}。返回 (code, message, true) 如果命中；
-// 否则 ("", "", false)。
-func extractSeedanceBusinessError(respBody []byte) (code, message string, ok bool) {
-	var outer dto.SeedanceAPIResponse[dto.SeedanceAssetError]
-	if common.Unmarshal(respBody, &outer) != nil {
-		return "", "", false
-	}
-	// framework 错误不在这里处理
-	if outer.State != 1 {
-		return "", "", false
-	}
-	if outer.Data.Code == "" {
-		return "", "", false
-	}
-	return outer.Data.Code, outer.Data.Message, true
+	return "", ""
 }
 
 // ---- 端点识别 ----
