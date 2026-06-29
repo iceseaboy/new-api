@@ -17,42 +17,84 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Tabs, TabPane } from '@douyinfe/semi-ui';
-import DocumentRenderer from '../../components/common/DocumentRenderer';
+import { Tabs, TabPane, Spin } from '@douyinfe/semi-ui';
+import { API } from '../../helpers';
+import MarkdownRenderer from '../../components/common/markdown/MarkdownRenderer';
 
-// API 文档页：复用平台布局（HeaderBar/SiderBar 由 PageLayout 提供）与样式，
-// 通过 Tabs 在「视频生成」「素材库管理」两份文档间切换。
+// 单份文档：拉取 markdown 原文并用平台 MarkdownRenderer 渲染。
+// 直接走 MarkdownRenderer（而非 DocumentRenderer），避免文档中 `<API_KEY>` 等
+// 占位符被 HTML 探测误判为 HTML 而整篇当纯文本输出。
+const DocContent = ({ endpoint, cacheKey }) => {
+  const [content, setContent] = useState(
+    () => localStorage.getItem(cacheKey) || '',
+  );
+  const [loading, setLoading] = useState(!content);
+
+  useEffect(() => {
+    let active = true;
+    API.get(endpoint)
+      .then((res) => {
+        const { success, data } = res.data || {};
+        if (active && success && data) {
+          setContent(data);
+          localStorage.setItem(cacheKey, data);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [endpoint, cacheKey]);
+
+  if (loading && !content) {
+    return (
+      <div className='flex justify-center py-20'>
+        <Spin size='large' />
+      </div>
+    );
+  }
+
+  return (
+    <div className='max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8'>
+      <div className='bg-white rounded-lg shadow-sm p-6 sm:p-8'>
+        <MarkdownRenderer content={content} />
+      </div>
+    </div>
+  );
+};
+
+// API 文档页：复用平台布局（PageLayout 的 HeaderBar/SiderBar）与样式，
+// Tabs 在「视频生成」「素材库管理」两份文档间切换。
 const Doc = () => {
   const { t } = useTranslation();
 
   return (
-    <Tabs
-      type='line'
-      defaultActiveKey='video'
-      lazyRender
-      collapsible
-      contentStyle={{ padding: 0 }}
-      tabBarStyle={{ justifyContent: 'center' }}
-    >
-      <TabPane tab={t('视频生成 API')} itemKey='video'>
-        <DocumentRenderer
-          apiEndpoint='/api/doc/seedance-video'
-          title={t('Seedance 2.0 视频生成 API')}
-          cacheKey='doc_seedance_video'
-          emptyMessage={t('加载文档失败')}
-        />
-      </TabPane>
-      <TabPane tab={t('素材库管理 API')} itemKey='asset'>
-        <DocumentRenderer
-          apiEndpoint='/api/doc/seedance-asset'
-          title={t('Seedance 素材库管理 API')}
-          cacheKey='doc_seedance_asset'
-          emptyMessage={t('加载文档失败')}
-        />
-      </TabPane>
-    </Tabs>
+    <div className='classic-page-fill bg-gray-50'>
+      <Tabs
+        type='line'
+        defaultActiveKey='video'
+        lazyRender
+        tabBarStyle={{ justifyContent: 'center', paddingTop: '0.5rem' }}
+      >
+        <TabPane tab={t('视频生成 API')} itemKey='video'>
+          <DocContent
+            endpoint='/api/doc/seedance-video'
+            cacheKey='doc_seedance_video'
+          />
+        </TabPane>
+        <TabPane tab={t('素材库管理 API')} itemKey='asset'>
+          <DocContent
+            endpoint='/api/doc/seedance-asset'
+            cacheKey='doc_seedance_asset'
+          />
+        </TabPane>
+      </Tabs>
+    </div>
   );
 };
 
