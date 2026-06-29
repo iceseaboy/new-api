@@ -49,16 +49,12 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
         itemKey: 'pricing',
         to: '/pricing',
       },
-      ...(docsLink
-        ? [
-            {
-              text: t('文档'),
-              itemKey: 'docs',
-              isExternal: true,
-              externalLink: docsLink,
-            },
-          ]
-        : []),
+      {
+        // 文档指向平台内置 /doc 页（SPA 内部路由，同标签页打开，复用平台布局）
+        text: t('文档'),
+        itemKey: 'docs',
+        to: '/doc',
+      },
       {
         text: t('关于'),
         itemKey: 'about',
@@ -69,7 +65,8 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
     // 根据配置过滤导航链接
     return allLinks.filter((link) => {
       if (link.itemKey === 'docs') {
-        return docsLink && modules.docs;
+        // /doc 为平台内置文档，默认展示；仅当管理员显式关闭 docs 模块时隐藏
+        return modules.docs !== false;
       }
       if (link.itemKey === 'pricing') {
         // 支持新的pricing配置格式
