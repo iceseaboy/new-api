@@ -110,12 +110,7 @@ const FooterBar = () => {
                   >
                     {t('安装指南')}
                   </a>
-                  <a
-                    href='https://docs.newapi.pro/api/'
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='!text-semi-color-text-1'
-                  >
+                  <a href='/doc' className='!text-semi-color-text-1'>
                     {t('API 文档')}
                   </a>
                 </div>
