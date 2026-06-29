@@ -40,8 +40,8 @@ Content-Type: application/json
 
 | 模型名 | 描述 | 适用场景 |
 |---|---|---|
-| `doubao-seedance-2.0` | Seedance 2.0 标准版 | 最佳画质、复杂镜头，支持 480p/720p/1080p |
-| `doubao-seedance-2.0-fast` | Seedance 2.0 Fast | 低延迟、成本敏感，支持 480p/720p（不支持 1080p） |
+| `doubao-seedance-2-0-260128` | Seedance 2.0 标准版 | 最佳画质、复杂镜头，支持 480p/720p/1080p |
+| `doubao-seedance-2-0-fast-260128` | Seedance 2.0 Fast | 低延迟、成本敏感，支持 480p/720p（不支持 1080p） |
 
 两个模型请求格式完全一致，直接替换 `model` 字段即可。
 
@@ -124,7 +124,7 @@ POST {BASE_URL}/v1/video/generations
   "id": "task_xxxxxxxxxxxxxxxxxx",
   "task_id": "task_xxxxxxxxxxxxxxxxxx",
   "object": "video",
-  "model": "doubao-seedance-2.0",
+  "model": "doubao-seedance-2-0-260128",
   "status": "queued",
   "progress": 0,
   "created_at": 1782724287
@@ -151,7 +151,7 @@ POST {BASE_URL}/v1/video/generations
 curl -X POST "$BASE_URL/v1/video/generations" \
   -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" \
   -d '{
-    "model": "doubao-seedance-2.0",
+    "model": "doubao-seedance-2-0-260128",
     "content": [{"type": "text", "text": "金色猎犬在金秋麦田奔跑，航拍视角，电影级画面"}],
     "metadata": {"duration": 5, "resolution": "720p", "ratio": "16:9"}
   }'
@@ -163,7 +163,7 @@ curl -X POST "$BASE_URL/v1/video/generations" \
 curl -X POST "$BASE_URL/v1/video/generations" \
   -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" \
   -d '{
-    "model": "doubao-seedance-2.0",
+    "model": "doubao-seedance-2-0-260128",
     "content": [
       {"type": "text", "text": "让画面自然动起来，镜头缓缓推近"},
       {"type": "image_url", "image_url": {"url": "asset://asset-2026xxxx"}, "role": "first_frame"}
@@ -178,7 +178,7 @@ curl -X POST "$BASE_URL/v1/video/generations" \
 curl -X POST "$BASE_URL/v1/video/generations" \
   -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" \
   -d '{
-    "model": "doubao-seedance-2.0",
+    "model": "doubao-seedance-2-0-260128",
     "content": [
       {"type": "text", "text": "从首帧平滑过渡到尾帧"},
       {"type": "image_url", "image_url": {"url": "asset://asset-first"}, "role": "first_frame"},
@@ -194,7 +194,7 @@ curl -X POST "$BASE_URL/v1/video/generations" \
 curl -X POST "$BASE_URL/v1/video/generations" \
   -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" \
   -d '{
-    "model": "doubao-seedance-2.0",
+    "model": "doubao-seedance-2-0-260128",
     "content": [
       {"type": "text", "text": "图1和图2中的两个人物在森林中奔跑，自然光，电影质感"},
       {"type": "image_url", "image_url": {"url": "asset://asset-a"}, "role": "reference_image"},
@@ -210,7 +210,7 @@ curl -X POST "$BASE_URL/v1/video/generations" \
 curl -X POST "$BASE_URL/v1/video/generations" \
   -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" \
   -d '{
-    "model": "doubao-seedance-2.0",
+    "model": "doubao-seedance-2-0-260128",
     "content": [
       {"type": "text", "text": "延续源视频的运镜与风格"},
       {"type": "video_url", "video_url": {"url": "asset://asset-video"}, "role": "reference_video"}
@@ -225,7 +225,7 @@ curl -X POST "$BASE_URL/v1/video/generations" \
 curl -X POST "$BASE_URL/v1/video/generations" \
   -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" \
   -d '{
-    "model": "doubao-seedance-2.0",
+    "model": "doubao-seedance-2-0-260128",
     "content": [
       {"type": "text", "text": "第一人称视角果茶广告，参考视频的运镜，使用音频作为背景音乐"},
       {"type": "image_url", "image_url": {"url": "asset://asset-img"}, "role": "reference_image"},
