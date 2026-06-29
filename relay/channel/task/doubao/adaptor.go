@@ -128,6 +128,8 @@ func inferDoubaoAction(c *gin.Context) string {
 	if err := common.UnmarshalBodyReusable(c, &req); err != nil {
 		return constant.TaskActionGenerate
 	}
+	// 顶层 content[] 归一化进 metadata.content，使场景推断对两种入参形态一致
+	req.NormalizeForCompatibility()
 	return inferActionFromRequest(&req)
 }
 

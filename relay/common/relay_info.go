@@ -681,17 +681,78 @@ type TaskRelayInfo struct {
 	LockedChannel any
 }
 
+// TaskMediaURL / TaskDraftTask / TaskContentItem 用于支持上游文档的"顶层 content[]"入参，
+// 即 {model, content:[{type,role,image_url/video_url/audio_url/text/draft_task}], metadata}。
+type TaskMediaURL struct {
+	URL string `json:"url"`
+}
+
+type TaskDraftTask struct {
+	ID string `json:"id"`
+}
+
+type TaskContentItem struct {
+	Type      string         `json:"type"`
+	Text      string         `json:"text,omitempty"`
+	Role      string         `json:"role,omitempty"`
+	ImageURL  *TaskMediaURL  `json:"image_url,omitempty"`
+	VideoURL  *TaskMediaURL  `json:"video_url,omitempty"`
+	AudioURL  *TaskMediaURL  `json:"audio_url,omitempty"`
+	DraftTask *TaskDraftTask `json:"draft_task,omitempty"`
+}
+
 type TaskSubmitReq struct {
 	Prompt         string                 `json:"prompt"`
 	Model          string                 `json:"model,omitempty"`
 	Mode           string                 `json:"mode,omitempty"`
 	Image          string                 `json:"image,omitempty"`
 	Images         []string               `json:"images,omitempty"`
+	Content        []TaskContentItem      `json:"content,omitempty"` // 顶层多模态输入数组（与上游文档一致）
 	Size           string                 `json:"size,omitempty"`
 	Duration       int                    `json:"duration,omitempty"`
 	Seconds        string                 `json:"seconds,omitempty"`
 	InputReference string                 `json:"input_reference,omitempty"`
 	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// NormalizeForCompatibility 归一化请求，使顶层 content[] 与旧式 image/images 都能被下游统一处理：
+//   - 旧式单图 Image → Images
+//   - 顶层 content[] → 注入 metadata.content（下游 doubao adaptor 统一从 metadata 读取，无需改动）
+//   - 从 content 的 text 项提取 prompt（满足 prompt 必填校验，并作为文本提示词）
+//
+// 该方法幂等：metadata.content 已存在时不覆盖；prompt 已有时不改写。
+func (t *TaskSubmitReq) NormalizeForCompatibility() {
+	if len(t.Images) == 0 && strings.TrimSpace(t.Image) != "" {
+		t.Images = []string{t.Image}
+	}
+	if len(t.Content) == 0 {
+		return
+	}
+	if t.Metadata == nil {
+		t.Metadata = map[string]interface{}{}
+	}
+	if _, exists := t.Metadata["content"]; !exists {
+		contentArr := make([]interface{}, 0, len(t.Content))
+		for _, item := range t.Content {
+			b, err := common.Marshal(item)
+			if err != nil {
+				continue
+			}
+			var m map[string]interface{}
+			if common.Unmarshal(b, &m) == nil {
+				contentArr = append(contentArr, m)
+			}
+		}
+		t.Metadata["content"] = contentArr
+	}
+	if strings.TrimSpace(t.Prompt) == "" {
+		for _, item := range t.Content {
+			if item.Type == "text" && strings.TrimSpace(item.Text) != "" {
+				t.Prompt = item.Text
+				break
+			}
+		}
+	}
 }
 
 func (t *TaskSubmitReq) GetPrompt() string {
