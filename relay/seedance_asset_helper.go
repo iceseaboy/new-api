@@ -197,8 +197,12 @@ func SeedanceAssetHelper(c *gin.Context, info *relaycommon.RelayInfo) *types.New
 		// 查询类：直接透传，不写 DB
 	}
 
-	// ---- DB 成功 → 写响应给客户端 ----
-	writeSeedanceResponse(c, resp, body)
+	// ---- DB 成功 → 翻译成下游统一契约 {state,data,error} 返回客户端 ----
+	// 网关对下游屏蔽上游(zlhub)的 {ResponseMetadata,Result} 外壳，统一对外暴露
+	// {"state":1,"data":<Result>,"error":null}，与素材管理接口文档一致。
+	if apiErr := writeSeedanceDownstreamResponse(c, body); apiErr != nil {
+		return apiErr
+	}
 
 	// ---- postConsume（免费：quota=0，只记日志和请求计数） ----
 	postConsumeSeedanceAsset(c, info, endpoint)
@@ -221,26 +225,24 @@ func buildSeedanceAssetURL(info *relaycommon.RelayInfo, endpoint string) (string
 	return baseURL + "?Action=" + endpoint, nil
 }
 
-// ---- 响应写入 ----
+// ---- 下游响应翻译 ----
 
-func writeSeedanceResponse(c *gin.Context, resp *http.Response, body []byte) {
-	hopByHopHeaders := map[string]bool{
-		"Connection": true, "Keep-Alive": true, "Transfer-Encoding": true,
-		"Proxy-Authenticate": true, "Proxy-Authorization": true,
-		"Te": true, "Trailer": true, "Upgrade": true, "Set-Cookie": true,
+// writeSeedanceDownstreamResponse 把上游(zlhub) {ResponseMetadata,Result} 翻译成
+// 下游统一契约 {"state":1,"data":<Result>,"error":null} 返回客户端，
+// 让客户端可按素材管理接口文档(state/data/error)对接，与上游外壳解耦。
+func writeSeedanceDownstreamResponse(c *gin.Context, body []byte) *types.NewAPIError {
+	var envelope dto.SeedanceAssetEnvelope[any]
+	if common.Unmarshal(body, &envelope) != nil || envelope.Result == nil {
+		logger.LogError(c, fmt.Sprintf("素材响应翻译失败: 无法解析 Result, upstream_body=%s", string(body)))
+		return types.NewError(fmt.Errorf("上游响应格式异常"),
+			types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
 	}
-	for key, values := range resp.Header {
-		if hopByHopHeaders[http.CanonicalHeaderKey(key)] {
-			continue
-		}
-		for _, value := range values {
-			c.Writer.Header().Add(key, value)
-		}
-	}
-	c.Writer.WriteHeader(resp.StatusCode)
-	if _, writeErr := c.Writer.Write(body); writeErr != nil {
-		logger.LogError(c, fmt.Sprintf("写入响应体失败: %s", writeErr.Error()))
-	}
+	c.JSON(http.StatusOK, gin.H{
+		"state": 1,
+		"data":  envelope.Result,
+		"error": nil,
+	})
+	return nil
 }
 
 // ---- Ownership 处理 ----
