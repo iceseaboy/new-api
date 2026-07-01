@@ -797,17 +797,61 @@ func (t *TaskSubmitReq) UnmarshalJSON(data []byte) error {
 			var metadataObj map[string]interface{}
 			if err := common.Unmarshal([]byte(metadataStr), &metadataObj); err == nil {
 				t.Metadata = metadataObj
-				return nil
 			}
-		}
-
-		var metadataObj map[string]interface{}
-		if err := common.Unmarshal(aux.Metadata, &metadataObj); err == nil {
-			t.Metadata = metadataObj
+		} else {
+			var metadataObj map[string]interface{}
+			if err := common.Unmarshal(aux.Metadata, &metadataObj); err == nil {
+				t.Metadata = metadataObj
+			}
 		}
 	}
 
+	// 兼容"顶层视频参数"写法（火山原生 / OpenAI 风格）：把顶层的非结构字段
+	// （resolution/ratio/generate_audio/watermark/seed/... 及 duration）合并进 metadata，
+	// 使下游适配器（统一从 metadata 读取参数）也能接住顶层写法。metadata 已有的键优先。
+	t.mergeTopLevelParamsIntoMetadata(data)
+
 	return nil
+}
+
+// taskSubmitReqReservedKeys 是 TaskSubmitReq 已有结构字段（+ metadata/duration）的 JSON 键，
+// 这些键不参与"顶层参数合并进 metadata"（它们已被结构体或专门逻辑处理）。
+var taskSubmitReqReservedKeys = map[string]bool{
+	"prompt": true, "model": true, "mode": true, "image": true, "images": true,
+	"content": true, "size": true, "seconds": true, "input_reference": true,
+	"metadata": true, "duration": true,
+}
+
+// mergeTopLevelParamsIntoMetadata 把请求顶层的非结构字段合并进 t.Metadata。
+// 已在 metadata 中的键优先，不被顶层覆盖；顶层的 duration 也补进 metadata（下游从 metadata 读）。
+func (t *TaskSubmitReq) mergeTopLevelParamsIntoMetadata(data []byte) {
+	var rawMap map[string]json.RawMessage
+	if common.Unmarshal(data, &rawMap) != nil {
+		return
+	}
+	for k, v := range rawMap {
+		if taskSubmitReqReservedKeys[k] {
+			continue
+		}
+		if t.Metadata == nil {
+			t.Metadata = map[string]interface{}{}
+		}
+		if _, exists := t.Metadata[k]; exists {
+			continue
+		}
+		var val interface{}
+		if common.Unmarshal(v, &val) == nil {
+			t.Metadata[k] = val
+		}
+	}
+	if t.Duration > 0 {
+		if t.Metadata == nil {
+			t.Metadata = map[string]interface{}{}
+		}
+		if _, exists := t.Metadata["duration"]; !exists {
+			t.Metadata["duration"] = t.Duration
+		}
+	}
 }
 func (t *TaskSubmitReq) UnmarshalMetadata(v any) error {
 	metadata := t.Metadata
