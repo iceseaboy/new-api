@@ -59,9 +59,11 @@ POST {BASE_URL}/v1/video/generations
 |---|---|---|---|
 | `model` | string | 是 | 模型名，见第三节 |
 | `content` | array | 是 | 多模态输入数组，顺序决定角色分配 |
-| `metadata` | object | 否 | 生成参数（分辨率、时长等），见 4.4 |
+| 生成参数 | - | 否 | `resolution` / `ratio` / `duration` / `generate_audio` 等，**直接放在请求顶层**，见 4.4 |
 
-> 兼容说明：也支持旧式 `prompt`（文本）+ `images`（图片 URL 数组）+ `metadata.content`。推荐使用顶层 `content[]`。
+> 生成参数写法：推荐直接放在请求**顶层**（如 `"resolution": "720p"`）。也兼容包在 `metadata` 对象里（`"metadata": {"resolution": "720p"}`）；两者同名键同时出现时以 `metadata` 内为准。
+>
+> 输入兼容：也支持旧式 `prompt`（文本）+ `images`（图片 URL 数组）+ `metadata.content`。推荐使用顶层 `content[]`。
 
 ### 4.2 content 数组元素
 
@@ -96,9 +98,11 @@ POST {BASE_URL}/v1/video/generations
 混用规则（违反返回 400）：
 - `reference_image` 不能与 `first_frame` / `last_frame` 同时出现
 - `audio_url` 必须至少搭配一个 `image_url` 或 `video_url`
-- 使用 `reference_audio` 时 `metadata.generate_audio` 必须为 `true`
+- 使用 `reference_audio` 时 `generate_audio` 必须为 `true`
 
-### 4.4 metadata 字段
+### 4.4 生成参数
+
+以下参数直接放在请求**顶层**；也兼容放在 `metadata` 对象内（见 4.1 说明）。
 
 | 字段 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -153,7 +157,9 @@ curl -X POST "$BASE_URL/v1/video/generations" \
   -d '{
     "model": "doubao-seedance-2-0-260128",
     "content": [{"type": "text", "text": "金色猎犬在金秋麦田奔跑，航拍视角，电影级画面"}],
-    "metadata": {"duration": 5, "resolution": "720p", "ratio": "16:9"}
+    "resolution": "720p",
+    "ratio": "16:9",
+    "duration": 5
   }'
 ```
 
@@ -168,7 +174,9 @@ curl -X POST "$BASE_URL/v1/video/generations" \
       {"type": "text", "text": "让画面自然动起来，镜头缓缓推近"},
       {"type": "image_url", "image_url": {"url": "asset://asset-2026xxxx"}, "role": "first_frame"}
     ],
-    "metadata": {"duration": 10, "resolution": "720p", "ratio": "adaptive"}
+    "resolution": "720p",
+    "ratio": "adaptive",
+    "duration": 10
   }'
 ```
 
@@ -184,7 +192,9 @@ curl -X POST "$BASE_URL/v1/video/generations" \
       {"type": "image_url", "image_url": {"url": "asset://asset-first"}, "role": "first_frame"},
       {"type": "image_url", "image_url": {"url": "asset://asset-last"}, "role": "last_frame"}
     ],
-    "metadata": {"duration": 5, "resolution": "720p", "ratio": "16:9"}
+    "resolution": "720p",
+    "ratio": "16:9",
+    "duration": 5
   }'
 ```
 
@@ -200,7 +210,9 @@ curl -X POST "$BASE_URL/v1/video/generations" \
       {"type": "image_url", "image_url": {"url": "asset://asset-a"}, "role": "reference_image"},
       {"type": "image_url", "image_url": {"url": "asset://asset-b"}, "role": "reference_image"}
     ],
-    "metadata": {"duration": 8, "resolution": "720p", "ratio": "16:9"}
+    "resolution": "720p",
+    "ratio": "16:9",
+    "duration": 8
   }'
 ```
 
@@ -215,7 +227,9 @@ curl -X POST "$BASE_URL/v1/video/generations" \
       {"type": "text", "text": "延续源视频的运镜与风格"},
       {"type": "video_url", "video_url": {"url": "asset://asset-video"}, "role": "reference_video"}
     ],
-    "metadata": {"duration": 8, "resolution": "720p", "ratio": "adaptive"}
+    "resolution": "720p",
+    "ratio": "adaptive",
+    "duration": 8
   }'
 ```
 
@@ -232,7 +246,10 @@ curl -X POST "$BASE_URL/v1/video/generations" \
       {"type": "video_url", "video_url": {"url": "asset://asset-vid"}, "role": "reference_video"},
       {"type": "audio_url", "audio_url": {"url": "asset://asset-aud"}, "role": "reference_audio"}
     ],
-    "metadata": {"duration": 8, "resolution": "720p", "ratio": "16:9", "generate_audio": true}
+    "resolution": "720p",
+    "ratio": "16:9",
+    "duration": 8,
+    "generate_audio": true
   }'
 ```
 
@@ -285,7 +302,7 @@ GET {BASE_URL}/v1/video/generations/{task_id}
 ### 轮询建议
 
 - 间隔 10–15 秒；文生视频约 30s–3min，参考/编辑约 2–8min
-- 客户端超时建议 ≥ 10 分钟，或在 `metadata.callback_url` 配置回调避免轮询
+- 客户端超时建议 ≥ 10 分钟，或用顶层 `callback_url` 配置回调避免轮询
 - 视频 URL 为临时签名链接，请及时下载或转存
 
 ---
@@ -316,7 +333,7 @@ GET {BASE_URL}/v1/video/generations/{task_id}
 
 | HTTP | 含义 | 处理建议 |
 |---|---|---|
-| 400 | 参数错误 | 检查 content / metadata / 互斥规则 |
+| 400 | 参数错误 | 检查 content / 生成参数 / 互斥规则 |
 | 401 | 鉴权失败 | 检查 Authorization 是否带 Token |
 | 403 | 无权限 | 确认 Token 是否有该模型权限 |
 | 404 | 任务不存在 | 检查 task_id |
