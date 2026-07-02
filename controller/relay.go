@@ -584,6 +584,7 @@ func RelayTask(c *gin.Context) {
 			}
 		}
 		task.Properties.RequestId = relayInfo.RequestId
+		task.Properties.UpstreamRequestId = c.GetString(common.UpstreamRequestIdKey)
 		task.Properties.TokenName = c.GetString("token_name")
 		task.PrivateData.UpstreamTaskID = result.UpstreamTaskID
 		task.PrivateData.BillingSource = relayInfo.BillingSource
