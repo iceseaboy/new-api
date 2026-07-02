@@ -2160,11 +2160,16 @@ export function renderLogContent(opts) {
         symbol,
         price: (modelRatio * 2.0 * rate).toFixed(6),
       }),
-      i18next.t('输出价格 {{symbol}}{{price}} / 1M tokens', {
-        symbol,
-        price: (modelRatio * 2.0 * completionRatio * rate).toFixed(6),
-      }),
     ];
+    // 任务类日志没有 completion_ratio，跳过输出价格，避免显示 ¥NaN
+    if (Number.isFinite(modelRatio * 2.0 * completionRatio * rate)) {
+      parts.push(
+          i18next.t('输出价格 {{symbol}}{{price}} / 1M tokens', {
+            symbol,
+            price: (modelRatio * 2.0 * completionRatio * rate).toFixed(6),
+          }),
+      );
+    }
     appendPricePart(
         parts,
         cacheRatio !== 1.0,
