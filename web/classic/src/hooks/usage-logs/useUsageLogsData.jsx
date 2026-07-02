@@ -479,7 +479,11 @@ export const useLogsData = () => {
           };
           const isTaskLog = other?.is_task === true || other?.task_id != null;
           if (isTaskLog && other?.model_price === -1) {
-            content = renderTaskBillingProcess(other, logs[i].content);
+            content = renderTaskBillingProcess(
+              other,
+              logs[i].content,
+              logs[i].quota,
+            );
           } else if (other?.ws || other?.audio) {
             content = renderAudioModelPrice(logOpts);
           } else if (other?.claude) {

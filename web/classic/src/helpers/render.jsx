@@ -1611,16 +1611,20 @@ function renderPriceSimpleCore({
   return result;
 }
 
-export function renderTaskBillingProcess(other, content) {
+export function renderTaskBillingProcess(other, content, quota) {
   if (other?.task_id != null) {
     return renderBillingArticle(
         [content].filter(Boolean),
         { showReferenceNote: false },
     );
   }
-  return renderBillingArticle([
+  const lines = [
     buildBillingText('任务预扣费（将在任务完成后按实际token重算）'),
-  ]);
+  ];
+  if (Number(quota) > 0) {
+    lines.push(`${i18next.t('预扣金额')}：${renderQuota(quota, 6)}`);
+  }
+  return renderBillingArticle(lines);
 }
 
 export function renderTaskRefundProcess(other, quota, content) {
