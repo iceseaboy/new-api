@@ -19,9 +19,24 @@ For commercial licensing, please contact support@quantumnous.com
 
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Tabs, TabPane, Spin } from '@douyinfe/semi-ui';
+import { Spin } from '@douyinfe/semi-ui';
 import { API } from '../../helpers';
 import MarkdownRenderer from '../../components/common/markdown/MarkdownRenderer';
+
+const DOCS = [
+  {
+    key: 'video',
+    title: '视频生成 API',
+    endpoint: '/api/doc/seedance-video',
+    cacheKey: 'doc_seedance_video',
+  },
+  {
+    key: 'asset',
+    title: '素材库管理 API',
+    endpoint: '/api/doc/seedance-asset',
+    cacheKey: 'doc_seedance_asset',
+  },
+];
 
 // 单份文档：拉取 markdown 原文并用平台 MarkdownRenderer 渲染。
 // 直接走 MarkdownRenderer（而非 DocumentRenderer），避免文档中 `<API_KEY>` 等
@@ -34,6 +49,7 @@ const DocContent = ({ endpoint, cacheKey }) => {
 
   useEffect(() => {
     let active = true;
+    setContent(localStorage.getItem(cacheKey) || '');
     API.get(endpoint)
       .then((res) => {
         const { success, data } = res.data || {};
@@ -59,41 +75,58 @@ const DocContent = ({ endpoint, cacheKey }) => {
     );
   }
 
-  return (
-    <div className='max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8'>
-      <div className='bg-white rounded-lg shadow-sm p-6 sm:p-8'>
-        <MarkdownRenderer content={content} />
-      </div>
-    </div>
-  );
+  return <MarkdownRenderer content={content} />;
 };
 
-// API 文档页：复用平台布局（PageLayout 的 HeaderBar/SiderBar）与样式，
-// Tabs 在「视频生成」「素材库管理」两份文档间切换。
+// API 文档页：复用平台布局（PageLayout 的固定 HeaderBar），顶部留出导航高度，
+// 文档切换用左侧栏（移动端为顶部横向按钮），避免被固定导航遮挡。
 const Doc = () => {
   const { t } = useTranslation();
+  const [activeKey, setActiveKey] = useState('video');
+  const activeDoc = DOCS.find((d) => d.key === activeKey) || DOCS[0];
+
+  const navItem = (doc, extraClass = '') => (
+    <button
+      key={doc.key}
+      type='button'
+      onClick={() => setActiveKey(doc.key)}
+      className={`text-left px-3 py-2 rounded-md text-sm transition-colors ${
+        doc.key === activeKey
+          ? 'bg-blue-50 text-blue-600 font-medium'
+          : 'text-gray-600 hover:bg-gray-100'
+      } ${extraClass}`}
+    >
+      {t(doc.title)}
+    </button>
+  );
 
   return (
-    <div className='classic-page-fill bg-gray-50'>
-      <Tabs
-        type='line'
-        defaultActiveKey='video'
-        lazyRender
-        tabBarStyle={{ justifyContent: 'center', paddingTop: '0.5rem' }}
-      >
-        <TabPane tab={t('视频生成 API')} itemKey='video'>
-          <DocContent
-            endpoint='/api/doc/seedance-video'
-            cacheKey='doc_seedance_video'
-          />
-        </TabPane>
-        <TabPane tab={t('素材库管理 API')} itemKey='asset'>
-          <DocContent
-            endpoint='/api/doc/seedance-asset'
-            cacheKey='doc_seedance_asset'
-          />
-        </TabPane>
-      </Tabs>
+    <div className='classic-page-fill bg-gray-50 pt-[64px]'>
+      <div className='max-w-7xl mx-auto flex items-start gap-6 px-4 sm:px-6 lg:px-8 py-6'>
+        {/* 侧栏（桌面端），sticky 固定在导航下方 */}
+        <aside className='hidden md:block w-56 flex-shrink-0 sticky top-[80px]'>
+          <div className='bg-white rounded-lg shadow-sm p-3 flex flex-col gap-1'>
+            <div className='px-3 py-2 text-xs font-medium text-gray-400'>
+              {t('API 文档')}
+            </div>
+            {DOCS.map((doc) => navItem(doc))}
+          </div>
+        </aside>
+
+        <main className='flex-1 min-w-0'>
+          {/* 移动端：顶部横向切换 */}
+          <div className='md:hidden flex gap-2 mb-4'>
+            {DOCS.map((doc) => navItem(doc, 'flex-1 text-center bg-white shadow-sm'))}
+          </div>
+
+          <div className='bg-white rounded-lg shadow-sm p-6 sm:p-8'>
+            <DocContent
+              endpoint={activeDoc.endpoint}
+              cacheKey={activeDoc.cacheKey}
+            />
+          </div>
+        </main>
+      </div>
     </div>
   );
 };
