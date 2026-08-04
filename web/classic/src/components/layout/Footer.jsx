@@ -188,6 +188,14 @@ const FooterBar = () => {
             <Typography.Text className='text-sm !text-semi-color-text-1'>
               © {currentYear} {systemName}. {t('版权所有')}
             </Typography.Text>
+            <a
+              href='https://beian.miit.gov.cn/'
+              target='_blank'
+              rel='noopener noreferrer'
+              className='text-sm !text-semi-color-text-1'
+            >
+              京ICP备2026046695号
+            </a>
           </div>
 
           <div className='text-sm'>
@@ -218,10 +226,20 @@ const FooterBar = () => {
       {footer ? (
         <footer className='relative h-auto py-4 px-6 md:px-24 w-full flex items-center justify-center overflow-hidden'>
           <div className='flex flex-col md:flex-row items-center justify-between w-full max-w-[1110px] gap-4'>
-            <div
-              className='custom-footer na-cb6feafeb3990c78 text-sm !text-semi-color-text-1'
-              dangerouslySetInnerHTML={{ __html: footer }}
-            ></div>
+            <div className='flex flex-wrap items-center gap-2'>
+              <div
+                className='custom-footer na-cb6feafeb3990c78 text-sm !text-semi-color-text-1'
+                dangerouslySetInnerHTML={{ __html: footer }}
+              ></div>
+              <a
+                href='https://beian.miit.gov.cn/'
+                target='_blank'
+                rel='noopener noreferrer'
+                className='text-sm !text-semi-color-text-1'
+              >
+                京ICP备2026046695号
+              </a>
+            </div>
             <div className='text-sm flex-shrink-0'>
               <span className='!text-semi-color-text-1'>
                 {t('设计与开发由')}{' '}
