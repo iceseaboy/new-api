@@ -230,6 +230,12 @@ func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *rela
 		taskErr = service.TaskErrorWrapperLocal(fmt.Errorf("%s", kResp.Message), "task_failed", http.StatusBadRequest)
 		return
 	}
+	// 非 kling 信封的上游错误（如 {"replyHeader":{...}}）会解析出 Code=0 且 task_id 为空，
+	// 必须判失败，否则产生永远 NOT_START 的幽灵任务且预扣费不退
+	if kResp.Data.TaskId == "" {
+		taskErr = service.TaskErrorWrapperLocal(fmt.Errorf("upstream did not return task_id: %s", string(responseBody)), "task_failed", http.StatusBadGateway)
+		return
+	}
 	ov := dto.NewOpenAIVideo()
 	ov.ID = info.PublicTaskID
 	ov.TaskID = info.PublicTaskID
