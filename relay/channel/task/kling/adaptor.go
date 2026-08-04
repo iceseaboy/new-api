@@ -6,6 +6,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -136,7 +137,7 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 func (a *TaskAdaptor) BuildRequestURL(info *relaycommon.RelayInfo) (string, error) {
 	path := lo.Ternary(info.Action == constant.TaskActionGenerate, "/v1/videos/image2video", "/v1/videos/text2video")
 
-	if isNewAPIRelay(info.ApiKey) {
+	if isNewAPIRelay(info.ApiKey) && !hasCustomPathPrefix(a.baseURL) {
 		return fmt.Sprintf("%s/kling%s", a.baseURL, path), nil
 	}
 
@@ -155,6 +156,30 @@ func (a *TaskAdaptor) BuildRequestHeader(c *gin.Context, req *http.Request, info
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("User-Agent", "kling-sdk/1.0")
 	return nil
+}
+
+// EstimateBilling 按「输出秒数 × 模式(分辨率)」提供计费乘数。
+// 基准价 ModelPrice 定义为 std(720P) 每秒单价；pro(1080P)/4k 按 1.666667 倍（如 $0.07/s ÷ $0.042/s）。
+// 下游 kling 原生请求体经 KlingRequestConvert 整体存于 metadata，故从 metadata 取 duration/mode。
+func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInfo) map[string]float64 {
+	req, err := relaycommon.GetTaskRequest(c)
+	if err != nil {
+		return nil
+	}
+	var meta struct {
+		Mode     string `json:"mode"`
+		Duration string `json:"duration"`
+	}
+	_ = taskcommon.UnmarshalMetadata(req.Metadata, &meta)
+	seconds, _ := strconv.Atoi(meta.Duration)
+	if seconds <= 0 {
+		seconds = taskcommon.DefaultInt(req.Duration, 5)
+	}
+	ratios := map[string]float64{"seconds": float64(seconds)}
+	if meta.Mode == "pro" || meta.Mode == "4k" {
+		ratios["mode"] = 1.666667
+	}
+	return ratios
 }
 
 // BuildRequestBody converts request into Kling specific format.
@@ -226,7 +251,7 @@ func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy 
 	}
 	path := lo.Ternary(action == constant.TaskActionGenerate, "/v1/videos/image2video", "/v1/videos/text2video")
 	url := fmt.Sprintf("%s%s/%s", baseUrl, path, taskID)
-	if isNewAPIRelay(key) {
+	if isNewAPIRelay(key) && !hasCustomPathPrefix(baseUrl) {
 		url = fmt.Sprintf("%s/kling%s/%s", baseUrl, path, taskID)
 	}
 
@@ -374,6 +399,16 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 
 func isNewAPIRelay(apiKey string) bool {
 	return strings.HasPrefix(apiKey, "sk-")
+}
+
+// hasCustomPathPrefix 判断渠道 base_url 是否带路径前缀（如 https://api.sinmo.top/openapi）。
+// 此类上游在该前缀下直接暴露 kling 原生路径，不能再插入 new-api 中继的 /kling 段。
+func hasCustomPathPrefix(baseURL string) bool {
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return false
+	}
+	return u.Path != "" && u.Path != "/"
 }
 
 func (a *TaskAdaptor) ConvertToOpenAIVideo(originTask *model.Task) ([]byte, error) {
