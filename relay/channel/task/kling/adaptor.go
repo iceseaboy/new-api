@@ -324,7 +324,8 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq, in
 		AspectRatio:    a.getAspectRatio(req.Size),
 		ModelName:      info.UpstreamModelName,
 		Model:          info.UpstreamModelName,
-		CfgScale:       0.5,
+		// cfg_scale 不设默认值：kling-v2.x 不支持该参数（传了直接报错），
+		// v1 系上游缺省即为 0.5；用户显式传入的仍经 metadata 透传
 		StaticMask:     "",
 		DynamicMasks:   []DynamicMask{},
 		CameraControl:  nil,
