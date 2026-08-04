@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-//go:embed doc/seedance-video-generation.md doc/seedance-asset-management.md
+//go:embed doc/seedance-video-generation.md doc/seedance-asset-management.md doc/kling-video-generation.md
 var docFS embed.FS
 
 // SetDocRouter 注册公开的 API 文档内容接口（无需登录鉴权）。
@@ -20,6 +20,7 @@ func SetDocRouter(router *gin.Engine) {
 	{
 		doc.GET("/seedance-video", docContent("doc/seedance-video-generation.md"))
 		doc.GET("/seedance-asset", docContent("doc/seedance-asset-management.md"))
+		doc.GET("/kling-video", docContent("doc/kling-video-generation.md"))
 	}
 }
 

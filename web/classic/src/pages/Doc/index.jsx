@@ -36,6 +36,12 @@ const DOCS = [
     endpoint: '/api/doc/seedance-asset',
     cacheKey: 'doc_seedance_asset',
   },
+  {
+    key: 'kling',
+    title: 'Kling 视频 API',
+    endpoint: '/api/doc/kling-video',
+    cacheKey: 'doc_kling_video',
+  },
 ];
 
 // 单份文档：拉取 markdown 原文并用平台 MarkdownRenderer 渲染。
