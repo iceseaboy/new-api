@@ -460,15 +460,33 @@ func parseNewAPIRelayTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) 
 		Progress: relayResp.Data.Progress,
 		Reason:   relayResp.Data.FailReason,
 	}
-	if status == model.TaskStatusSuccess && len(relayResp.Data.Data) > 0 {
-		var inner responsePayload
-		if err := common.Unmarshal(relayResp.Data.Data, &inner); err == nil {
-			if videos := inner.Data.TaskResult.Videos; len(videos) > 0 {
-				taskInfo.Url = videos[0].Url
-			}
-		}
+	if status == model.TaskStatusSuccess {
+		taskInfo.Url = extractRelayVideoURL(relayResp.Data.Data)
 	}
 	return taskInfo, nil
+}
+
+// extractRelayVideoURL 逐层拆开中继信封（可能多级 new-api 串联，每级包一层 data），
+// 直到最内层 kling 原生数据中的 task_result.videos[0].url。
+func extractRelayVideoURL(raw json.RawMessage) string {
+	for depth := 0; depth < 6 && len(raw) > 0; depth++ {
+		var probe struct {
+			TaskResult struct {
+				Videos []struct {
+					Url string `json:"url"`
+				} `json:"videos"`
+			} `json:"task_result"`
+			Data json.RawMessage `json:"data"`
+		}
+		if err := common.Unmarshal(raw, &probe); err != nil {
+			return ""
+		}
+		if videos := probe.TaskResult.Videos; len(videos) > 0 {
+			return videos[0].Url
+		}
+		raw = probe.Data
+	}
+	return ""
 }
 
 // hasCustomPathPrefix 判断渠道 base_url 是否带路径前缀（如 https://api.sinmo.top/openapi）。
