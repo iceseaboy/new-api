@@ -231,6 +231,26 @@ func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *rela
 		taskErr = service.TaskErrorWrapperLocal(fmt.Errorf("%s", kResp.Message), "task_failed", http.StatusBadRequest)
 		return
 	}
+	if kResp.Data.TaskId == "" {
+		// new-api 中继上游的提交响应是 OpenAIVideo 格式：{"task_id":"task_...","id":"task_...", ...}
+		var relaySubmit struct {
+			TaskID string `json:"task_id"`
+			ID     string `json:"id"`
+			Error  *struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if uerr := common.Unmarshal(responseBody, &relaySubmit); uerr == nil {
+			if relaySubmit.Error != nil && relaySubmit.Error.Message != "" {
+				taskErr = service.TaskErrorWrapperLocal(fmt.Errorf("%s", relaySubmit.Error.Message), "task_failed", http.StatusBadRequest)
+				return
+			}
+			if relaySubmit.TaskID == "" {
+				relaySubmit.TaskID = relaySubmit.ID
+			}
+			kResp.Data.TaskId = relaySubmit.TaskID
+		}
+	}
 	// 非 kling 信封的上游错误（如 {"replyHeader":{...}}）会解析出 Code=0 且 task_id 为空，
 	// 必须判失败，否则产生永远 NOT_START 的幽灵任务且预扣费不退
 	if kResp.Data.TaskId == "" {
