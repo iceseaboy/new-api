@@ -388,6 +388,13 @@ func updateVideoSingleTask(ctx context.Context, adaptor TaskPollingAdaptor, ch *
 		taskResult.Progress = t.Progress
 		taskResult.Reason = t.FailReason
 		task.Data = t.Data
+		// 中继上游的 TaskDto 不携带上游真实结果 URL（private_data 不外发），
+		// 成功而无 URL 时交给适配器从内层原生数据提取，否则会回填自指代理地址
+		if taskResult.Status == string(model.TaskStatusSuccess) && taskResult.Url == "" && len(t.Data) > 0 {
+			if inner, innerErr := adaptor.ParseTaskResult(t.Data); innerErr == nil && inner.Url != "" {
+				taskResult.Url = inner.Url
+			}
+		}
 	} else if taskResult, err = adaptor.ParseTaskResult(responseBody); err != nil {
 		return fmt.Errorf("parseTaskResult failed for task %s: %w", taskId, err)
 	}
