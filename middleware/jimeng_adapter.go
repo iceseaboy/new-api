@@ -44,6 +44,7 @@ func JimengRequestConvert() func(c *gin.Context) {
 		// Update request body
 		c.Request.Body = io.NopCloser(bytes.NewBuffer(jsonData))
 		c.Set(common.KeyRequestBody, jsonData)
+		_ = common.ReplaceBodyStorage(c, jsonData)
 
 		if image, ok := originalReq["image"]; !ok || image == "" {
 			c.Set("action", constant.TaskActionTextGenerate)

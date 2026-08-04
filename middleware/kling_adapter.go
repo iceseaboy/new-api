@@ -47,6 +47,10 @@ func KlingRequestConvert() func(c *gin.Context) {
 
 		// We have to reset the request body for the next handlers
 		c.Set(common.KeyRequestBody, jsonData)
+		if err := common.ReplaceBodyStorage(c, jsonData); err != nil {
+			c.Next()
+			return
+		}
 		c.Next()
 	}
 }

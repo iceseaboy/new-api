@@ -105,6 +105,24 @@ func CleanupBodyStorage(c *gin.Context) {
 	}
 }
 
+// ReplaceBodyStorage 用新内容替换请求体存储。
+// 改写请求体的转换中间件必须调用它：GetRequestBody 优先返回 KeyBodyStorage 缓存，
+// 仅改 c.Request.Body / KeyRequestBody 不会对下游生效。
+func ReplaceBodyStorage(c *gin.Context, data []byte) error {
+	if old, exists := c.Get(KeyBodyStorage); exists && old != nil {
+		if bs, ok := old.(BodyStorage); ok {
+			bs.Close()
+		}
+		c.Set(KeyBodyStorage, nil)
+	}
+	bs, err := CreateBodyStorage(data)
+	if err != nil {
+		return err
+	}
+	c.Set(KeyBodyStorage, bs)
+	return nil
+}
+
 func UnmarshalBodyReusable(c *gin.Context, v any) error {
 	storage, err := GetBodyStorage(c)
 	if err != nil {
