@@ -2,6 +2,7 @@ package kling
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math"
@@ -370,6 +371,10 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 	resPayload := responsePayload{}
 	err := common.Unmarshal(respBody, &resPayload)
 	if err != nil {
+		// new-api 中继上游的查询响应是 TaskDto 信封（code 为字符串），回退解析
+		if relayInfo, relayErr := parseNewAPIRelayTaskResult(respBody); relayErr == nil {
+			return relayInfo, nil
+		}
 		return nil, errors.Wrap(err, "failed to unmarshal response body")
 	}
 	taskInfo.Code = resPayload.Code
@@ -405,6 +410,44 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 
 func isNewAPIRelay(apiKey string) bool {
 	return strings.HasPrefix(apiKey, "sk-")
+}
+
+// parseNewAPIRelayTaskResult 解析 new-api 中继上游的任务查询响应（TaskDto 信封）：
+// {"code":"success","data":{"status":"SUCCESS","progress":"100%","fail_reason":"","data":{...kling 原生响应...}}}
+// 状态取外层 TaskDto.status；视频 URL 从内层 kling 原生数据提取。
+func parseNewAPIRelayTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) {
+	var relayResp struct {
+		Data struct {
+			Status     string          `json:"status"`
+			Progress   string          `json:"progress"`
+			FailReason string          `json:"fail_reason"`
+			Data       json.RawMessage `json:"data"`
+		} `json:"data"`
+	}
+	if err := common.Unmarshal(respBody, &relayResp); err != nil {
+		return nil, err
+	}
+	status := model.TaskStatus(relayResp.Data.Status)
+	switch status {
+	case model.TaskStatusNotStart, model.TaskStatusSubmitted, model.TaskStatusQueued,
+		model.TaskStatusInProgress, model.TaskStatusSuccess, model.TaskStatusFailure:
+	default:
+		return nil, fmt.Errorf("unknown relay task status: %q", relayResp.Data.Status)
+	}
+	taskInfo := &relaycommon.TaskInfo{
+		Status:   string(status),
+		Progress: relayResp.Data.Progress,
+		Reason:   relayResp.Data.FailReason,
+	}
+	if status == model.TaskStatusSuccess && len(relayResp.Data.Data) > 0 {
+		var inner responsePayload
+		if err := common.Unmarshal(relayResp.Data.Data, &inner); err == nil {
+			if videos := inner.Data.TaskResult.Videos; len(videos) > 0 {
+				taskInfo.Url = videos[0].Url
+			}
+		}
+	}
+	return taskInfo, nil
 }
 
 // hasCustomPathPrefix 判断渠道 base_url 是否带路径前缀（如 https://api.sinmo.top/openapi）。
