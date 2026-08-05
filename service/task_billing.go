@@ -132,6 +132,12 @@ func taskBillingOther(task *model.Task) map[string]interface{} {
 				other[k] = v
 			}
 		}
+		if bc.Resolution != "" {
+			other["resolution"] = bc.Resolution
+		}
+		if bc.TotalTokens > 0 {
+			other["total_tokens"] = bc.TotalTokens
+		}
 	}
 	props := task.Properties
 	if props.UpstreamModelName != "" && props.UpstreamModelName != props.OriginModelName {
@@ -183,15 +189,17 @@ func RefundTaskQuota(ctx context.Context, task *model.Task, reason string) bool 
 	other["task_id"] = task.TaskID
 	other["reason"] = reason
 	model.RecordTaskBillingLog(model.RecordTaskBillingLogParams{
-		UserId:    task.UserId,
-		LogType:   model.LogTypeRefund,
-		Content:   "",
-		ChannelId: task.ChannelId,
-		ModelName: taskModelName(task),
-		Quota:     quota,
-		TokenId:   task.PrivateData.TokenId,
-		Group:     task.Group,
-		Other:     other,
+		UserId:            task.UserId,
+		LogType:           model.LogTypeRefund,
+		Content:           "",
+		ChannelId:         task.ChannelId,
+		ModelName:         taskModelName(task),
+		Quota:             quota,
+		TokenId:           task.PrivateData.TokenId,
+		Group:             task.Group,
+		RequestId:         task.Properties.RequestId,
+		UpstreamRequestId: task.Properties.UpstreamRequestId,
+		Other:             other,
 	})
 
 	// 4. 资金退款完成后再清除持久化标记。
@@ -261,16 +269,18 @@ func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int
 		attachQuotaSaturationToOther(other, clamp)
 	}
 	model.RecordTaskBillingLog(model.RecordTaskBillingLogParams{
-		UserId:    task.UserId,
-		LogType:   logType,
-		Content:   reason,
-		ChannelId: task.ChannelId,
-		ModelName: taskModelName(task),
-		Quota:     logQuota,
-		TokenId:   task.PrivateData.TokenId,
-		Group:     task.Group,
-		Other:     other,
-		NodeName:  task.PrivateData.NodeName,
+		UserId:            task.UserId,
+		LogType:           logType,
+		Content:           reason,
+		ChannelId:         task.ChannelId,
+		ModelName:         taskModelName(task),
+		Quota:             logQuota,
+		TokenId:           task.PrivateData.TokenId,
+		Group:             task.Group,
+		RequestId:         task.Properties.RequestId,
+		UpstreamRequestId: task.Properties.UpstreamRequestId,
+		Other:             other,
+		NodeName:          task.PrivateData.NodeName,
 	})
 }
 

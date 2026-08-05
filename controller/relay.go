@@ -585,6 +585,15 @@ func RelayTask(c *gin.Context) {
 		service.LogTaskConsumption(c, relayInfo)
 
 		task := model.InitTask(result.Platform, relayInfo)
+		// 记录请求体（输入）/请求ID/令牌名称，用于任务日志列表展示
+		if bs, bsErr := common.GetBodyStorage(c); bsErr == nil {
+			if body, bErr := bs.Bytes(); bErr == nil {
+				task.Properties.Input = string(body)
+			}
+		}
+		task.Properties.RequestId = relayInfo.RequestId
+		task.Properties.UpstreamRequestId = c.GetString(common.UpstreamRequestIdKey)
+		task.Properties.TokenName = c.GetString("token_name")
 		task.PrivateData.UpstreamTaskID = result.UpstreamTaskID
 		task.PrivateData.BillingSource = relayInfo.BillingSource
 		task.PrivateData.SubscriptionId = relayInfo.SubscriptionId
@@ -597,6 +606,7 @@ func RelayTask(c *gin.Context) {
 			OtherRatios:     relayInfo.PriceData.OtherRatios(),
 			OriginModelName: relayInfo.OriginModelName,
 			PerCallBilling:  common.StringsContains(constant.TaskPricePatches, relayInfo.OriginModelName) || relayInfo.PriceData.UsePrice,
+			HasVideoInput:   c.GetBool(string(constant.ContextKeyTaskVideoHasInput)),
 		}
 		task.Quota = result.Quota
 		task.Data = result.TaskData
