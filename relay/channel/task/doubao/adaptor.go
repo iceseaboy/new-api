@@ -2,10 +2,13 @@ package doubao
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -116,15 +119,97 @@ func (a *TaskAdaptor) Init(info *relaycommon.RelayInfo) {
 	a.apiKey = info.ApiKey
 }
 
-// ValidateRequestAndSetAction parses body, validates fields and sets default action.
+// ValidateRequestAndSetAction parses body, validates fields and sets action.
 func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycommon.RelayInfo) (taskErr *taskdto.TaskError) {
-	// Accept only POST /v1/video/generations as "generate" action.
-	return relaycommon.ValidateBasicTaskRequest(c, info, constant.TaskActionGenerate)
+	// 按 content 推断任务场景，使日志/前端正确区分 文生/图生/首尾帧/参考生视频，
+	// 而不是一律标成 generate（图生视频）。
+	action := inferDoubaoAction(c)
+	return relaycommon.ValidateBasicTaskRequest(c, info, action)
+}
+
+// inferDoubaoAction 解析请求体并推断任务场景对应的 action。
+// 解析失败时回退到 generate，由后续 ValidateBasicTaskRequest 统一报错。
+func inferDoubaoAction(c *gin.Context) string {
+	var req relaycommon.TaskSubmitReq
+	if err := common.UnmarshalBodyReusable(c, &req); err != nil {
+		return constant.TaskActionGenerate
+	}
+	// 顶层 content[] 归一化进 metadata.content，使场景推断对两种入参形态一致
+	req.NormalizeForCompatibility()
+	return inferActionFromRequest(&req)
+}
+
+// inferActionFromRequest 根据输入的图片/视频/音频及其 role 推断场景：
+//   - 含参考图/视频/音频 → referenceGenerate（参照生视频）
+//   - 首帧 + 尾帧        → firstTailGenerate（首尾生视频）
+//   - 仅首帧 / 旧式单图   → generate（图生视频）
+//   - 仅文本             → textGenerate（文生视频）
+//
+// 三类带图场景互斥（见上游文档），优先级 参考 > 首尾帧 > 首帧。
+func inferActionFromRequest(req *relaycommon.TaskSubmitReq) string {
+	var firstFrame, lastFrame, refImage, refVideo, refAudio int
+
+	if content, ok := req.Metadata["content"].([]interface{}); ok {
+		for _, item := range content {
+			m, ok := item.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			typ, _ := m["type"].(string)
+			role, _ := m["role"].(string)
+			switch typ {
+			case "video_url":
+				refVideo++
+			case "audio_url":
+				refAudio++
+			case "image_url":
+				switch role {
+				case "last_frame":
+					lastFrame++
+				case "reference_image":
+					refImage++
+				default: // first_frame 或不填
+					firstFrame++
+				}
+			}
+		}
+	}
+
+	switch {
+	case refVideo > 0 || refAudio > 0 || refImage > 0:
+		return constant.TaskActionReferenceGenerate
+	case firstFrame > 0 && lastFrame > 0:
+		return constant.TaskActionFirstTailGenerate
+	case firstFrame > 0 || lastFrame > 0 || len(req.Images) > 0:
+		return constant.TaskActionGenerate
+	default:
+		return constant.TaskActionTextGenerate
+	}
 }
 
 // BuildRequestURL constructs the upstream URL.
 func (a *TaskAdaptor) BuildRequestURL(_ *relaycommon.RelayInfo) (string, error) {
+	if isNewAPIRelay(a.apiKey, a.baseURL) {
+		return fmt.Sprintf("%s/v1/video/generations", a.baseURL), nil
+	}
 	return fmt.Sprintf("%s/api/v3/contents/generations/tasks", a.baseURL), nil
+}
+
+// isNewAPIRelay 判断上游是否为 new-api 网关：密钥为 sk- 前缀且 base_url 不带路径前缀。
+// 仅凭密钥不够——zlhub 等聚合上游用 sk- 密钥但走火山原生协议（base_url 带 /origin 类路径前缀）；
+// 火山官方密钥为 UUID 格式，不带 sk- 前缀。
+func isNewAPIRelay(apiKey, baseURL string) bool {
+	return strings.HasPrefix(apiKey, "sk-") && !hasCustomPathPrefix(baseURL)
+}
+
+// hasCustomPathPrefix 判断渠道 base_url 是否带路径前缀（如 https://api.zlhub.cn/origin）。
+// 此类上游在该前缀下直接暴露火山原生路径，按原生协议对接。
+func hasCustomPathPrefix(baseURL string) bool {
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return false
+	}
+	return u.Path != "" && u.Path != "/"
 }
 
 // BuildRequestHeader sets required headers.
@@ -135,19 +220,72 @@ func (a *TaskAdaptor) BuildRequestHeader(_ *gin.Context, req *http.Request, _ *r
 	return nil
 }
 
-// EstimateBilling 根据请求 metadata 中的输出分辨率与是否包含视频输入，返回相对基准价的计费 OtherRatio。
+// EstimateBilling 根据请求的输出分辨率与是否含视频输入，返回相对基准价的计费 OtherRatio。
 func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInfo) map[string]float64 {
 	req, err := relaycommon.GetTaskRequest(c)
 	if err != nil {
 		return nil
 	}
+	resolution := resolutionFromMetadata(req.Metadata)
 	hasVideo := hasVideoInMetadata(req.Metadata)
-	resolution, _ := req.Metadata["resolution"].(string)
 	ratio, ok := GetVideoInputRatio(info.OriginModelName, resolution, hasVideo)
-	if !ok || ratio == 1.0 {
+	if !ok {
 		return nil
 	}
-	return map[string]float64{"video_input": ratio}
+	// 透传"是否含视频输入"（请求侧事实）到 BillingContext，
+	// 结算时配合上游实际输出分辨率精确重算价格。
+	c.Set(string(constant.ContextKeyTaskVideoHasInput), hasVideo)
+	if ratio != 1.0 {
+		return map[string]float64{"video_input": ratio}
+	}
+	return nil
+}
+
+// AdjustBillingOnComplete 在任务完成时，用上游"实际输出分辨率"重算 video_input 倍率，
+// 使结算严格按真实出片分辨率计费（而非提交时请求的分辨率，规避 --rs 旁路等不一致）。
+// "是否含视频输入"是请求侧事实，取自冻结的 BillingContext.HasVideoInput。
+// 返回 0：不直接给出最终额度，而是修正 BillingContext 后交由通用 token 重算结算，
+// 以复用其差额结算与日志记录逻辑；同时写入分辨率/token 供日志「计费过程」展示。
+func (a *TaskAdaptor) AdjustBillingOnComplete(task *model.Task, taskResult *relaycommon.TaskInfo) int {
+	if task == nil || taskResult == nil {
+		return 0
+	}
+	bc := task.PrivateData.BillingContext
+	if bc == nil {
+		return 0
+	}
+	// 上游未返回分辨率时不覆盖，保留提交时按请求分辨率冻结的倍率
+	actualResolution := taskResult.Resolution
+	if actualResolution == "" {
+		return 0
+	}
+	ratio, ok := GetVideoInputRatio(bc.OriginModelName, actualResolution, bc.HasVideoInput)
+	if !ok {
+		return 0
+	}
+	if bc.OtherRatios == nil {
+		bc.OtherRatios = map[string]float64{}
+	}
+	if ratio == 1.0 {
+		delete(bc.OtherRatios, "video_input")
+	} else {
+		bc.OtherRatios["video_input"] = ratio
+	}
+	bc.Resolution = actualResolution
+	bc.TotalTokens = taskResult.TotalTokens
+	return 0
+}
+
+// resolutionFromMetadata 从请求 metadata 读取输出分辨率（如 "480p"/"720p"/"1080p"）。
+// 未指定时返回空字符串，由计费逻辑按模型默认分辨率(720p 档)处理。
+func resolutionFromMetadata(metadata map[string]interface{}) string {
+	if metadata == nil {
+		return ""
+	}
+	if v, ok := metadata["resolution"].(string); ok {
+		return v
+	}
+	return ""
 }
 
 // hasVideoInMetadata 直接检查 metadata 的 content 数组是否包含 video_url 条目，
@@ -184,6 +322,24 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 	req, err := relaycommon.GetTaskRequest(c)
 	if err != nil {
 		return nil, err
+	}
+
+	// new-api 中继上游：两边提交格式同为 TaskSubmitReq，直接透传（仅替换映射后的模型名），
+	// 顶层 content[] 归一化进 metadata.content 以兼容不支持顶层写法的下游版本。
+	if isNewAPIRelay(a.apiKey, a.baseURL) {
+		relayReq := req
+		relayReq.NormalizeForCompatibility()
+		relayReq.Content = nil
+		if info.IsModelMapped {
+			relayReq.Model = info.UpstreamModelName
+		} else {
+			info.UpstreamModelName = relayReq.Model
+		}
+		data, err := common.Marshal(relayReq)
+		if err != nil {
+			return nil, err
+		}
+		return bytes.NewReader(data), nil
 	}
 
 	body, err := a.convertToRequestPayload(&req)
@@ -224,7 +380,28 @@ func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *rela
 	}
 
 	if dResp.ID == "" {
-		taskErr = service.TaskErrorWrapper(fmt.Errorf("task_id is empty"), "invalid_response", http.StatusInternalServerError)
+		// new-api 中继上游的提交响应是 OpenAIVideo 格式：{"task_id":"task_...","id":"task_...", ...}
+		var relaySubmit struct {
+			TaskID string `json:"task_id"`
+			ID     string `json:"id"`
+			Error  *struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if uerr := common.Unmarshal(responseBody, &relaySubmit); uerr == nil {
+			if relaySubmit.Error != nil && relaySubmit.Error.Message != "" {
+				taskErr = service.TaskErrorWrapperLocal(fmt.Errorf("%s", relaySubmit.Error.Message), "task_failed", http.StatusBadRequest)
+				return
+			}
+			if relaySubmit.TaskID == "" {
+				relaySubmit.TaskID = relaySubmit.ID
+			}
+			dResp.ID = relaySubmit.TaskID
+		}
+	}
+	// 上游未返回任务 ID 必须判失败，否则产生永远 NOT_START 的幽灵任务且预扣费不退
+	if dResp.ID == "" {
+		taskErr = service.TaskErrorWrapper(fmt.Errorf("upstream did not return task_id: %s", string(responseBody)), "invalid_response", http.StatusInternalServerError)
 		return
 	}
 
@@ -246,6 +423,9 @@ func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy 
 	}
 
 	uri := fmt.Sprintf("%s/api/v3/contents/generations/tasks/%s", baseUrl, taskID)
+	if isNewAPIRelay(key, baseUrl) {
+		uri = fmt.Sprintf("%s/v1/video/generations/%s", baseUrl, taskID)
+	}
 
 	req, err := http.NewRequest(http.MethodGet, uri, nil)
 	if err != nil {
@@ -308,6 +488,11 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 }
 
 func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) {
+	// 优先尝试 new-api 中继信封（TaskDto 格式）；非中继响应会因状态不合法而回退到火山原生解析
+	if relayResult, err := parseNewAPIRelayTaskResult(respBody); err == nil {
+		return relayResult, nil
+	}
+
 	resTask := responseTask{}
 	if err := common.Unmarshal(respBody, &resTask); err != nil {
 		return nil, errors.Wrap(err, "unmarshal task result failed")
@@ -332,6 +517,8 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 		// 解析 usage 信息用于按倍率计费
 		taskResult.CompletionTokens = resTask.Usage.CompletionTokens
 		taskResult.TotalTokens = resTask.Usage.TotalTokens
+		// 记录上游实际生成的输出分辨率，用于结算时按真实分辨率计费
+		taskResult.Resolution = resTask.Resolution
 	case "failed":
 		taskResult.Status = model.TaskStatusFailure
 		taskResult.Progress = "100%"
@@ -343,6 +530,63 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 	}
 
 	return &taskResult, nil
+}
+
+// parseNewAPIRelayTaskResult 解析 new-api 中继上游的任务查询响应（TaskDto 信封）：
+// {"code":"success","data":{"status":"SUCCESS","progress":"100%","fail_reason":"","data":{...火山原生响应...}}}
+// 状态取外层 TaskDto.status；URL/usage/分辨率从内层火山原生数据提取（用于按实际分辨率结算）。
+func parseNewAPIRelayTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) {
+	var relayResp struct {
+		Data struct {
+			Status     string          `json:"status"`
+			Progress   string          `json:"progress"`
+			FailReason string          `json:"fail_reason"`
+			Data       json.RawMessage `json:"data"`
+		} `json:"data"`
+	}
+	if err := common.Unmarshal(respBody, &relayResp); err != nil {
+		return nil, err
+	}
+	status := model.TaskStatus(relayResp.Data.Status)
+	switch status {
+	case model.TaskStatusNotStart, model.TaskStatusSubmitted, model.TaskStatusQueued,
+		model.TaskStatusInProgress, model.TaskStatusSuccess, model.TaskStatusFailure:
+	default:
+		return nil, fmt.Errorf("unknown relay task status: %q", relayResp.Data.Status)
+	}
+	taskInfo := &relaycommon.TaskInfo{
+		Status:   string(status),
+		Progress: relayResp.Data.Progress,
+		Reason:   relayResp.Data.FailReason,
+	}
+	if status == model.TaskStatusSuccess {
+		if inner := extractRelayInnerTask(relayResp.Data.Data); inner != nil {
+			taskInfo.Url = inner.Content.VideoURL
+			taskInfo.CompletionTokens = inner.Usage.CompletionTokens
+			taskInfo.TotalTokens = inner.Usage.TotalTokens
+			taskInfo.Resolution = inner.Resolution
+		}
+	}
+	return taskInfo, nil
+}
+
+// extractRelayInnerTask 逐层拆开中继信封（可能多级 new-api 串联，每级包一层 data），
+// 直到最内层火山原生任务数据（含 video_url/usage/resolution）。
+func extractRelayInnerTask(raw json.RawMessage) *responseTask {
+	for depth := 0; depth < 6 && len(raw) > 0; depth++ {
+		var probe struct {
+			responseTask
+			Data json.RawMessage `json:"data"`
+		}
+		if err := common.Unmarshal(raw, &probe); err != nil {
+			return nil
+		}
+		if probe.Content.VideoURL != "" || probe.Usage.TotalTokens > 0 || probe.Resolution != "" {
+			return &probe.responseTask
+		}
+		raw = probe.Data
+	}
+	return nil
 }
 
 func (a *TaskAdaptor) ConvertToOpenAIVideo(originTask *model.Task) ([]byte, error) {

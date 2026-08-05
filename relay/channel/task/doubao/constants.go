@@ -38,6 +38,12 @@ var videoPriceTable = map[string]map[videoPriceKey]float64{
 	},
 }
 
+// init 注册 zlhub 对外点分模型别名，与火山原生模型 id 共享同一份定价，避免两个别名漂移。
+func init() {
+	videoPriceTable["doubao-seedance-2.0"] = videoPriceTable["doubao-seedance-2-0-260128"]
+	videoPriceTable["doubao-seedance-2.0-fast"] = videoPriceTable["doubao-seedance-2-0-fast-260128"]
+}
+
 // GetVideoInputRatio 返回指定模型在给定输出分辨率/是否含视频输入下，相对基准价的计费倍率。
 // 第二个返回值表示该模型是否配置了价格表；倍率为 1.0 时调用方可忽略该 OtherRatio。
 func GetVideoInputRatio(modelName, resolution string, hasVideo bool) (float64, bool) {

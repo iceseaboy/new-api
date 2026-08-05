@@ -73,4 +73,9 @@ const (
 	// fallback in authHelper (finishAdminAudit) skips its record to avoid
 	// duplicate entries.
 	ContextKeyAuditLogged ContextKey = "audit_logged"
+
+	// ContextKeyTaskVideoHasInput marks that a video-generation task request contains
+	// video input, threaded from the adaptor's EstimateBilling into the persisted
+	// TaskBillingContext so settlement can recompute price by actual output resolution.
+	ContextKeyTaskVideoHasInput ContextKey = "task_video_has_input"
 )

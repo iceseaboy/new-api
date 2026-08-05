@@ -835,17 +835,78 @@ type TaskRelayInfo struct {
 	LockedChannel any
 }
 
+// TaskMediaURL / TaskDraftTask / TaskContentItem 用于支持上游文档的"顶层 content[]"入参，
+// 即 {model, content:[{type,role,image_url/video_url/audio_url/text/draft_task}], metadata}。
+type TaskMediaURL struct {
+	URL string `json:"url"`
+}
+
+type TaskDraftTask struct {
+	ID string `json:"id"`
+}
+
+type TaskContentItem struct {
+	Type      string         `json:"type"`
+	Text      string         `json:"text,omitempty"`
+	Role      string         `json:"role,omitempty"`
+	ImageURL  *TaskMediaURL  `json:"image_url,omitempty"`
+	VideoURL  *TaskMediaURL  `json:"video_url,omitempty"`
+	AudioURL  *TaskMediaURL  `json:"audio_url,omitempty"`
+	DraftTask *TaskDraftTask `json:"draft_task,omitempty"`
+}
+
 type TaskSubmitReq struct {
 	Prompt         string                 `json:"prompt"`
 	Model          string                 `json:"model,omitempty"`
 	Mode           string                 `json:"mode,omitempty"`
 	Image          string                 `json:"image,omitempty"`
 	Images         []string               `json:"images,omitempty"`
+	Content        []TaskContentItem      `json:"content,omitempty"` // 顶层多模态输入数组（与上游文档一致）
 	Size           string                 `json:"size,omitempty"`
 	Duration       int                    `json:"duration,omitempty"`
 	Seconds        string                 `json:"seconds,omitempty"`
 	InputReference string                 `json:"input_reference,omitempty"`
 	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// NormalizeForCompatibility 归一化请求，使顶层 content[] 与旧式 image/images 都能被下游统一处理：
+//   - 旧式单图 Image → Images
+//   - 顶层 content[] → 注入 metadata.content（下游 doubao adaptor 统一从 metadata 读取，无需改动）
+//   - 从 content 的 text 项提取 prompt（满足 prompt 必填校验，并作为文本提示词）
+//
+// 该方法幂等：metadata.content 已存在时不覆盖；prompt 已有时不改写。
+func (t *TaskSubmitReq) NormalizeForCompatibility() {
+	if len(t.Images) == 0 && strings.TrimSpace(t.Image) != "" {
+		t.Images = []string{t.Image}
+	}
+	if len(t.Content) == 0 {
+		return
+	}
+	if t.Metadata == nil {
+		t.Metadata = map[string]interface{}{}
+	}
+	if _, exists := t.Metadata["content"]; !exists {
+		contentArr := make([]interface{}, 0, len(t.Content))
+		for _, item := range t.Content {
+			b, err := common.Marshal(item)
+			if err != nil {
+				continue
+			}
+			var m map[string]interface{}
+			if common.Unmarshal(b, &m) == nil {
+				contentArr = append(contentArr, m)
+			}
+		}
+		t.Metadata["content"] = contentArr
+	}
+	if strings.TrimSpace(t.Prompt) == "" {
+		for _, item := range t.Content {
+			if item.Type == "text" && strings.TrimSpace(item.Text) != "" {
+				t.Prompt = item.Text
+				break
+			}
+		}
+	}
 }
 
 func (t *TaskSubmitReq) GetPrompt() string {
@@ -890,17 +951,61 @@ func (t *TaskSubmitReq) UnmarshalJSON(data []byte) error {
 			var metadataObj map[string]interface{}
 			if err := common.Unmarshal([]byte(metadataStr), &metadataObj); err == nil {
 				t.Metadata = metadataObj
-				return nil
 			}
-		}
-
-		var metadataObj map[string]interface{}
-		if err := common.Unmarshal(aux.Metadata, &metadataObj); err == nil {
-			t.Metadata = metadataObj
+		} else {
+			var metadataObj map[string]interface{}
+			if err := common.Unmarshal(aux.Metadata, &metadataObj); err == nil {
+				t.Metadata = metadataObj
+			}
 		}
 	}
 
+	// 兼容"顶层视频参数"写法（火山原生 / OpenAI 风格）：把顶层的非结构字段
+	// （resolution/ratio/generate_audio/watermark/seed/... 及 duration）合并进 metadata，
+	// 使下游适配器（统一从 metadata 读取参数）也能接住顶层写法。metadata 已有的键优先。
+	t.mergeTopLevelParamsIntoMetadata(data)
+
 	return nil
+}
+
+// taskSubmitReqReservedKeys 是 TaskSubmitReq 已有结构字段（+ metadata/duration）的 JSON 键，
+// 这些键不参与"顶层参数合并进 metadata"（它们已被结构体或专门逻辑处理）。
+var taskSubmitReqReservedKeys = map[string]bool{
+	"prompt": true, "model": true, "mode": true, "image": true, "images": true,
+	"content": true, "size": true, "seconds": true, "input_reference": true,
+	"metadata": true, "duration": true,
+}
+
+// mergeTopLevelParamsIntoMetadata 把请求顶层的非结构字段合并进 t.Metadata。
+// 已在 metadata 中的键优先，不被顶层覆盖；顶层的 duration 也补进 metadata（下游从 metadata 读）。
+func (t *TaskSubmitReq) mergeTopLevelParamsIntoMetadata(data []byte) {
+	var rawMap map[string]json.RawMessage
+	if common.Unmarshal(data, &rawMap) != nil {
+		return
+	}
+	for k, v := range rawMap {
+		if taskSubmitReqReservedKeys[k] {
+			continue
+		}
+		if t.Metadata == nil {
+			t.Metadata = map[string]interface{}{}
+		}
+		if _, exists := t.Metadata[k]; exists {
+			continue
+		}
+		var val interface{}
+		if common.Unmarshal(v, &val) == nil {
+			t.Metadata[k] = val
+		}
+	}
+	if t.Duration > 0 {
+		if t.Metadata == nil {
+			t.Metadata = map[string]interface{}{}
+		}
+		if _, exists := t.Metadata["duration"]; !exists {
+			t.Metadata["duration"] = t.Duration
+		}
+	}
 }
 func (t *TaskSubmitReq) UnmarshalMetadata(v any) error {
 	metadata := t.Metadata
@@ -927,6 +1032,7 @@ type TaskInfo struct {
 	Progress         string `json:"progress,omitempty"`
 	CompletionTokens int    `json:"completion_tokens,omitempty"` // 用于按倍率计费
 	TotalTokens      int    `json:"total_tokens,omitempty"`      // 用于按倍率计费
+	Resolution       string `json:"resolution,omitempty"`        // 上游实际生成的输出分辨率，用于按真实分辨率结算
 }
 
 func FailTaskInfo(reason string) *TaskInfo {

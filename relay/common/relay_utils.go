@@ -295,17 +295,15 @@ func ValidateBasicTaskRequest(c *gin.Context, info *RelayInfo, action string) *d
 		return createTaskError(err, "invalid_request", http.StatusBadRequest, true)
 	}
 
+	// 归一化：顶层 content[] → metadata.content + 提取 prompt；旧式 Image → Images
+	req.NormalizeForCompatibility()
+
 	if taskErr := validatePrompt(req.Prompt); taskErr != nil {
 		return taskErr
 	}
 
 	if taskErr := validateTaskDurationBounds(req); taskErr != nil {
 		return taskErr
-	}
-
-	if len(req.Images) == 0 && strings.TrimSpace(req.Image) != "" {
-		// 兼容单图上传
-		req.Images = []string{req.Image}
 	}
 
 	storeTaskRequest(c, info, action, req)
