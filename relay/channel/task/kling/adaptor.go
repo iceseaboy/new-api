@@ -2,10 +2,12 @@ package kling
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -137,7 +139,7 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 func (a *TaskAdaptor) BuildRequestURL(info *relaycommon.RelayInfo) (string, error) {
 	path := lo.Ternary(info.Action == constant.TaskActionGenerate, "/v1/videos/image2video", "/v1/videos/text2video")
 
-	if isNewAPIRelay(info.ApiKey) {
+	if isNewAPIRelay(info.ApiKey) && !hasCustomPathPrefix(a.baseURL) {
 		return fmt.Sprintf("%s/kling%s", a.baseURL, path), nil
 	}
 
@@ -156,6 +158,30 @@ func (a *TaskAdaptor) BuildRequestHeader(c *gin.Context, req *http.Request, info
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("User-Agent", "kling-sdk/1.0")
 	return nil
+}
+
+// EstimateBilling 按「输出秒数 × 模式(分辨率)」提供计费乘数。
+// 基准价 ModelPrice 定义为 std(720P) 每秒单价；pro(1080P)/4k 按 1.666667 倍（如 $0.07/s ÷ $0.042/s）。
+// 下游 kling 原生请求体经 KlingRequestConvert 整体存于 metadata，故从 metadata 取 duration/mode。
+func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInfo) map[string]float64 {
+	req, err := relaycommon.GetTaskRequest(c)
+	if err != nil {
+		return nil
+	}
+	var meta struct {
+		Mode     string `json:"mode"`
+		Duration string `json:"duration"`
+	}
+	_ = taskcommon.UnmarshalMetadata(req.Metadata, &meta)
+	seconds, _ := strconv.Atoi(meta.Duration)
+	if seconds <= 0 {
+		seconds = taskcommon.DefaultInt(req.Duration, 5)
+	}
+	ratios := map[string]float64{"seconds": float64(seconds)}
+	if meta.Mode == "pro" || meta.Mode == "4k" {
+		ratios["mode"] = 1.666667
+	}
+	return ratios
 }
 
 // BuildRequestBody converts request into Kling specific format.
@@ -206,6 +232,32 @@ func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *rela
 		taskErr = service.TaskErrorWrapperLocal(fmt.Errorf("%s", kResp.Message), "task_failed", http.StatusBadRequest)
 		return
 	}
+	if kResp.Data.TaskId == "" {
+		// new-api 中继上游的提交响应是 OpenAIVideo 格式：{"task_id":"task_...","id":"task_...", ...}
+		var relaySubmit struct {
+			TaskID string `json:"task_id"`
+			ID     string `json:"id"`
+			Error  *struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if uerr := common.Unmarshal(responseBody, &relaySubmit); uerr == nil {
+			if relaySubmit.Error != nil && relaySubmit.Error.Message != "" {
+				taskErr = service.TaskErrorWrapperLocal(fmt.Errorf("%s", relaySubmit.Error.Message), "task_failed", http.StatusBadRequest)
+				return
+			}
+			if relaySubmit.TaskID == "" {
+				relaySubmit.TaskID = relaySubmit.ID
+			}
+			kResp.Data.TaskId = relaySubmit.TaskID
+		}
+	}
+	// 非 kling 信封的上游错误（如 {"replyHeader":{...}}）会解析出 Code=0 且 task_id 为空，
+	// 必须判失败，否则产生永远 NOT_START 的幽灵任务且预扣费不退
+	if kResp.Data.TaskId == "" {
+		taskErr = service.TaskErrorWrapperLocal(fmt.Errorf("upstream did not return task_id: %s", string(responseBody)), "task_failed", http.StatusBadGateway)
+		return
+	}
 	ov := dto.NewOpenAIVideo()
 	ov.ID = info.PublicTaskID
 	ov.TaskID = info.PublicTaskID
@@ -227,7 +279,7 @@ func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy 
 	}
 	path := lo.Ternary(action == constant.TaskActionGenerate, "/v1/videos/image2video", "/v1/videos/text2video")
 	url := fmt.Sprintf("%s%s/%s", baseUrl, path, taskID)
-	if isNewAPIRelay(key) {
+	if isNewAPIRelay(key) && !hasCustomPathPrefix(baseUrl) {
 		url = fmt.Sprintf("%s/kling%s/%s", baseUrl, path, taskID)
 	}
 
@@ -273,7 +325,8 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq, in
 		AspectRatio:    a.getAspectRatio(req.Size),
 		ModelName:      info.UpstreamModelName,
 		Model:          info.UpstreamModelName,
-		CfgScale:       0.5,
+		// cfg_scale 不设默认值：kling-v2.x 不支持该参数（传了直接报错），
+		// v1 系上游缺省即为 0.5；用户显式传入的仍经 metadata 透传
 		StaticMask:     "",
 		DynamicMasks:   []DynamicMask{},
 		CameraControl:  nil,
@@ -340,6 +393,10 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 	resPayload := responsePayload{}
 	err := common.Unmarshal(respBody, &resPayload)
 	if err != nil {
+		// new-api 中继上游的查询响应是 TaskDto 信封（code 为字符串），回退解析
+		if relayInfo, relayErr := parseNewAPIRelayTaskResult(respBody); relayErr == nil {
+			return relayInfo, nil
+		}
 		return nil, errors.Wrap(err, "failed to unmarshal response body")
 	}
 	taskInfo.Code = resPayload.Code
@@ -376,6 +433,72 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 
 func isNewAPIRelay(apiKey string) bool {
 	return strings.HasPrefix(apiKey, "sk-")
+}
+
+// parseNewAPIRelayTaskResult 解析 new-api 中继上游的任务查询响应（TaskDto 信封）：
+// {"code":"success","data":{"status":"SUCCESS","progress":"100%","fail_reason":"","data":{...kling 原生响应...}}}
+// 状态取外层 TaskDto.status；视频 URL 从内层 kling 原生数据提取。
+func parseNewAPIRelayTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) {
+	var relayResp struct {
+		Data struct {
+			Status     string          `json:"status"`
+			Progress   string          `json:"progress"`
+			FailReason string          `json:"fail_reason"`
+			Data       json.RawMessage `json:"data"`
+		} `json:"data"`
+	}
+	if err := common.Unmarshal(respBody, &relayResp); err != nil {
+		return nil, err
+	}
+	status := model.TaskStatus(relayResp.Data.Status)
+	switch status {
+	case model.TaskStatusNotStart, model.TaskStatusSubmitted, model.TaskStatusQueued,
+		model.TaskStatusInProgress, model.TaskStatusSuccess, model.TaskStatusFailure:
+	default:
+		return nil, fmt.Errorf("unknown relay task status: %q", relayResp.Data.Status)
+	}
+	taskInfo := &relaycommon.TaskInfo{
+		Status:   string(status),
+		Progress: relayResp.Data.Progress,
+		Reason:   relayResp.Data.FailReason,
+	}
+	if status == model.TaskStatusSuccess {
+		taskInfo.Url = extractRelayVideoURL(relayResp.Data.Data)
+	}
+	return taskInfo, nil
+}
+
+// extractRelayVideoURL 逐层拆开中继信封（可能多级 new-api 串联，每级包一层 data），
+// 直到最内层 kling 原生数据中的 task_result.videos[0].url。
+func extractRelayVideoURL(raw json.RawMessage) string {
+	for depth := 0; depth < 6 && len(raw) > 0; depth++ {
+		var probe struct {
+			TaskResult struct {
+				Videos []struct {
+					Url string `json:"url"`
+				} `json:"videos"`
+			} `json:"task_result"`
+			Data json.RawMessage `json:"data"`
+		}
+		if err := common.Unmarshal(raw, &probe); err != nil {
+			return ""
+		}
+		if videos := probe.TaskResult.Videos; len(videos) > 0 {
+			return videos[0].Url
+		}
+		raw = probe.Data
+	}
+	return ""
+}
+
+// hasCustomPathPrefix 判断渠道 base_url 是否带路径前缀（如 https://api.sinmo.top/openapi）。
+// 此类上游在该前缀下直接暴露 kling 原生路径，不能再插入 new-api 中继的 /kling 段。
+func hasCustomPathPrefix(baseURL string) bool {
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return false
+	}
+	return u.Path != "" && u.Path != "/"
 }
 
 func (a *TaskAdaptor) ConvertToOpenAIVideo(originTask *model.Task) ([]byte, error) {
