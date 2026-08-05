@@ -223,6 +223,10 @@ func RecalculateTaskQuota(ctx context.Context, task *model.Task, actualQuota int
 	taskAdjustTokenQuota(ctx, task, quotaDelta)
 
 	task.Quota = actualQuota
+	// 结算发生在任务状态落库之后，需单独回写 quota（移植自 upstream 043720f9b）
+	if err := task.UpdateQuota(); err != nil {
+		logger.LogError(ctx, fmt.Sprintf("差额结算回写 quota 失败 task %s: %s", task.TaskID, err.Error()))
+	}
 
 	var logType int
 	var logQuota int
