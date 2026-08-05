@@ -31,6 +31,18 @@ func SetVideoRouter(router *gin.Engine) {
 		videoV1Router.GET("/videos/:task_id", controller.RelayTaskFetch)
 	}
 
+	// Seedance 素材资产 API：免费透传 + 多租户归属校验
+	seedanceV1Router := router.Group("/v1/seedance")
+	seedanceV1Router.Use(middleware.RouteTag("relay"))
+	seedanceV1Router.Use(middleware.TokenAuth(), middleware.Distribute())
+	{
+		seedanceV1Router.POST("/asset/CreateAssetGroup", controller.RelaySeedanceAsset)
+		seedanceV1Router.POST("/asset/CreateAsset", controller.RelaySeedanceAsset)
+		seedanceV1Router.POST("/asset/GetAsset", controller.RelaySeedanceAsset)
+		// 本地素材列表（仅查本地归属记录，不透传上游）
+		seedanceV1Router.GET("/assets", controller.SeedanceAssetList)
+	}
+
 	klingV1Router := router.Group("/kling/v1")
 	klingV1Router.Use(middleware.RouteTag("relay"))
 	klingV1Router.Use(middleware.KlingRequestConvert(), middleware.TokenAuth(), middleware.Distribute())
