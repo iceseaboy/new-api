@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -187,16 +188,27 @@ func inferActionFromRequest(req *relaycommon.TaskSubmitReq) string {
 
 // BuildRequestURL constructs the upstream URL.
 func (a *TaskAdaptor) BuildRequestURL(_ *relaycommon.RelayInfo) (string, error) {
-	if isNewAPIRelay(a.apiKey) {
+	if isNewAPIRelay(a.apiKey, a.baseURL) {
 		return fmt.Sprintf("%s/v1/video/generations", a.baseURL), nil
 	}
 	return fmt.Sprintf("%s/api/v3/contents/generations/tasks", a.baseURL), nil
 }
 
-// isNewAPIRelay 判断上游是否为 new-api 网关（密钥为 sk- 前缀）；
-// 火山原生密钥为 UUID 格式，不带该前缀。
-func isNewAPIRelay(apiKey string) bool {
-	return strings.HasPrefix(apiKey, "sk-")
+// isNewAPIRelay 判断上游是否为 new-api 网关：密钥为 sk- 前缀且 base_url 不带路径前缀。
+// 仅凭密钥不够——zlhub 等聚合上游用 sk- 密钥但走火山原生协议（base_url 带 /origin 类路径前缀）；
+// 火山官方密钥为 UUID 格式，不带 sk- 前缀。
+func isNewAPIRelay(apiKey, baseURL string) bool {
+	return strings.HasPrefix(apiKey, "sk-") && !hasCustomPathPrefix(baseURL)
+}
+
+// hasCustomPathPrefix 判断渠道 base_url 是否带路径前缀（如 https://api.zlhub.cn/origin）。
+// 此类上游在该前缀下直接暴露火山原生路径，按原生协议对接。
+func hasCustomPathPrefix(baseURL string) bool {
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return false
+	}
+	return u.Path != "" && u.Path != "/"
 }
 
 // BuildRequestHeader sets required headers.
@@ -313,7 +325,7 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 
 	// new-api 中继上游：两边提交格式同为 TaskSubmitReq，直接透传（仅替换映射后的模型名），
 	// 顶层 content[] 归一化进 metadata.content 以兼容不支持顶层写法的下游版本。
-	if isNewAPIRelay(a.apiKey) {
+	if isNewAPIRelay(a.apiKey, a.baseURL) {
 		relayReq := req
 		relayReq.NormalizeForCompatibility()
 		relayReq.Content = nil
@@ -410,7 +422,7 @@ func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy 
 	}
 
 	uri := fmt.Sprintf("%s/api/v3/contents/generations/tasks/%s", baseUrl, taskID)
-	if isNewAPIRelay(key) {
+	if isNewAPIRelay(key, baseUrl) {
 		uri = fmt.Sprintf("%s/v1/video/generations/%s", baseUrl, taskID)
 	}
 

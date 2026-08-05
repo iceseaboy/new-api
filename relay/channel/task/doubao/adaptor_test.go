@@ -154,3 +154,24 @@ func TestParseNewAPIRelayTaskResult(t *testing.T) {
 		t.Fatal("native body should not parse as relay envelope")
 	}
 }
+
+func TestIsNewAPIRelay(t *testing.T) {
+	cases := []struct {
+		name string
+		key  string
+		base string
+		want bool
+	}{
+		{"tokease 裸域名 sk-", "sk-abc", "https://tokease.cn", true},
+		{"zlhub sk- 但带 /origin 前缀 → 原生", "sk-abc", "https://api.zlhub.cn/origin", false},
+		{"火山官方 UUID 密钥", "0af5e219-8305-4b2f", "https://ark.cn-beijing.volces.com", false},
+		{"尾斜杠视为无前缀", "sk-abc", "https://tokease.cn/", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isNewAPIRelay(tc.key, tc.base); got != tc.want {
+				t.Fatalf("isNewAPIRelay(%q,%q) = %v, want %v", tc.key, tc.base, got, tc.want)
+			}
+		})
+	}
+}
