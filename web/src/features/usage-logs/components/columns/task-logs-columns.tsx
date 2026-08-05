@@ -25,7 +25,7 @@ import { useTranslation } from 'react-i18next'
 import { StatusBadge } from '@/components/status-badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
-import { formatTimestampToDate } from '@/lib/format'
+import { formatQuota, formatTimestampToDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 import { TASK_ACTIONS, TASK_STATUS } from '../../constants'
@@ -172,6 +172,7 @@ export function useTaskLogsColumns(isAdmin: boolean): ColumnDef<TaskLog>[] {
         if (!taskId) {
           return <span className='text-muted-foreground/60 text-xs'>-</span>
         }
+        const upstreamTaskId = log.upstream_task_id
         return (
           <div className='flex max-w-[170px] flex-col gap-0.5'>
             <StatusBadge
@@ -181,6 +182,15 @@ export function useTaskLogsColumns(isAdmin: boolean): ColumnDef<TaskLog>[] {
               size='sm'
               className='border-border/60 bg-muted/30 !text-foreground max-w-full truncate rounded-md border px-1.5 py-0.5 font-mono'
             />
+            {upstreamTaskId && upstreamTaskId !== taskId && (
+              <StatusBadge
+                label={upstreamTaskId}
+                copyText={upstreamTaskId}
+                variant='neutral'
+                size='sm'
+                className='border-border/40 bg-muted/10 !text-muted-foreground max-w-full truncate rounded-md border px-1.5 py-0.5 font-mono'
+              />
+            )}
             <span className='text-muted-foreground/60 truncate text-[11px]'>
               {t(log.platform)} · {t(taskActionMapper.getLabel(log.action))}
             </span>
@@ -188,6 +198,27 @@ export function useTaskLogsColumns(isAdmin: boolean): ColumnDef<TaskLog>[] {
         )
       },
       meta: { mobileTitle: true },
+    },
+    {
+      accessorKey: 'quota',
+      header: t('Cost'),
+      cell: ({ row }) => {
+        const log = row.original
+        const quota = log.quota ?? 0
+        if (!quota) {
+          return <span className='text-muted-foreground/60 text-xs'>-</span>
+        }
+        return (
+          <div className='flex flex-col gap-0.5'>
+            <span className='text-xs font-medium'>{formatQuota(quota)}</span>
+            {log.properties?.token_name && (
+              <span className='text-muted-foreground/60 truncate text-[11px]'>
+                {log.properties.token_name}
+              </span>
+            )}
+          </div>
+        )
+      },
     },
     createDurationColumn<TaskLog>({
       submitTimeKey: 'submit_time',

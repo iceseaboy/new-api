@@ -284,14 +284,25 @@ export interface MidjourneyLog {
 // Task Logs Types
 // ============================================================================
 
+export interface TaskLogProperties {
+  input?: string
+  request_id?: string
+  upstream_request_id?: string
+  token_name?: string
+  upstream_model_name?: string
+  origin_model_name?: string
+}
+
 export interface TaskLog {
   id: number
   user_id: number
   username?: string
   platform: string // suno, kling, runway, etc.
   task_id: string
+  upstream_task_id?: string // 上游真实任务 ID
   action: string // MUSIC, LYRICS, GENERATE, TEXT_GENERATE, etc.
   channel_id: number
+  quota?: number // 消耗额度（结算后为实际额度）
   submit_time: number // seconds
   finish_time?: number // seconds
   progress?: string
@@ -299,6 +310,7 @@ export interface TaskLog {
   data?: string // JSON string
   fail_reason?: string
   status: string // NOT_START, SUBMITTED, IN_PROGRESS, SUCCESS, FAILURE, QUEUED, UNKNOWN
+  properties?: TaskLogProperties
   other?: string
   created_at?: number
   updated_at?: number
