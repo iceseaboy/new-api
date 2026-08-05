@@ -2,10 +2,12 @@ package doubao
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -185,7 +187,16 @@ func inferActionFromRequest(req *relaycommon.TaskSubmitReq) string {
 
 // BuildRequestURL constructs the upstream URL.
 func (a *TaskAdaptor) BuildRequestURL(_ *relaycommon.RelayInfo) (string, error) {
+	if isNewAPIRelay(a.apiKey) {
+		return fmt.Sprintf("%s/v1/video/generations", a.baseURL), nil
+	}
 	return fmt.Sprintf("%s/api/v3/contents/generations/tasks", a.baseURL), nil
+}
+
+// isNewAPIRelay 判断上游是否为 new-api 网关（密钥为 sk- 前缀）；
+// 火山原生密钥为 UUID 格式，不带该前缀。
+func isNewAPIRelay(apiKey string) bool {
+	return strings.HasPrefix(apiKey, "sk-")
 }
 
 // BuildRequestHeader sets required headers.
@@ -300,6 +311,24 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 		return nil, err
 	}
 
+	// new-api 中继上游：两边提交格式同为 TaskSubmitReq，直接透传（仅替换映射后的模型名），
+	// 顶层 content[] 归一化进 metadata.content 以兼容不支持顶层写法的下游版本。
+	if isNewAPIRelay(a.apiKey) {
+		relayReq := req
+		relayReq.NormalizeForCompatibility()
+		relayReq.Content = nil
+		if info.IsModelMapped {
+			relayReq.Model = info.UpstreamModelName
+		} else {
+			info.UpstreamModelName = relayReq.Model
+		}
+		data, err := common.Marshal(relayReq)
+		if err != nil {
+			return nil, err
+		}
+		return bytes.NewReader(data), nil
+	}
+
 	body, err := a.convertToRequestPayload(&req)
 	if err != nil {
 		return nil, errors.Wrap(err, "convert request payload failed")
@@ -338,7 +367,28 @@ func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *rela
 	}
 
 	if dResp.ID == "" {
-		taskErr = service.TaskErrorWrapper(fmt.Errorf("task_id is empty"), "invalid_response", http.StatusInternalServerError)
+		// new-api 中继上游的提交响应是 OpenAIVideo 格式：{"task_id":"task_...","id":"task_...", ...}
+		var relaySubmit struct {
+			TaskID string `json:"task_id"`
+			ID     string `json:"id"`
+			Error  *struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if uerr := common.Unmarshal(responseBody, &relaySubmit); uerr == nil {
+			if relaySubmit.Error != nil && relaySubmit.Error.Message != "" {
+				taskErr = service.TaskErrorWrapperLocal(fmt.Errorf("%s", relaySubmit.Error.Message), "task_failed", http.StatusBadRequest)
+				return
+			}
+			if relaySubmit.TaskID == "" {
+				relaySubmit.TaskID = relaySubmit.ID
+			}
+			dResp.ID = relaySubmit.TaskID
+		}
+	}
+	// 上游未返回任务 ID 必须判失败，否则产生永远 NOT_START 的幽灵任务且预扣费不退
+	if dResp.ID == "" {
+		taskErr = service.TaskErrorWrapper(fmt.Errorf("upstream did not return task_id: %s", string(responseBody)), "invalid_response", http.StatusInternalServerError)
 		return
 	}
 
@@ -360,6 +410,9 @@ func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy 
 	}
 
 	uri := fmt.Sprintf("%s/api/v3/contents/generations/tasks/%s", baseUrl, taskID)
+	if isNewAPIRelay(key) {
+		uri = fmt.Sprintf("%s/v1/video/generations/%s", baseUrl, taskID)
+	}
 
 	req, err := http.NewRequest(http.MethodGet, uri, nil)
 	if err != nil {
@@ -422,6 +475,11 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 }
 
 func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) {
+	// 优先尝试 new-api 中继信封（TaskDto 格式）；非中继响应会因状态不合法而回退到火山原生解析
+	if relayResult, err := parseNewAPIRelayTaskResult(respBody); err == nil {
+		return relayResult, nil
+	}
+
 	resTask := responseTask{}
 	if err := common.Unmarshal(respBody, &resTask); err != nil {
 		return nil, errors.Wrap(err, "unmarshal task result failed")
@@ -459,6 +517,63 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 	}
 
 	return &taskResult, nil
+}
+
+// parseNewAPIRelayTaskResult 解析 new-api 中继上游的任务查询响应（TaskDto 信封）：
+// {"code":"success","data":{"status":"SUCCESS","progress":"100%","fail_reason":"","data":{...火山原生响应...}}}
+// 状态取外层 TaskDto.status；URL/usage/分辨率从内层火山原生数据提取（用于按实际分辨率结算）。
+func parseNewAPIRelayTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) {
+	var relayResp struct {
+		Data struct {
+			Status     string          `json:"status"`
+			Progress   string          `json:"progress"`
+			FailReason string          `json:"fail_reason"`
+			Data       json.RawMessage `json:"data"`
+		} `json:"data"`
+	}
+	if err := common.Unmarshal(respBody, &relayResp); err != nil {
+		return nil, err
+	}
+	status := model.TaskStatus(relayResp.Data.Status)
+	switch status {
+	case model.TaskStatusNotStart, model.TaskStatusSubmitted, model.TaskStatusQueued,
+		model.TaskStatusInProgress, model.TaskStatusSuccess, model.TaskStatusFailure:
+	default:
+		return nil, fmt.Errorf("unknown relay task status: %q", relayResp.Data.Status)
+	}
+	taskInfo := &relaycommon.TaskInfo{
+		Status:   string(status),
+		Progress: relayResp.Data.Progress,
+		Reason:   relayResp.Data.FailReason,
+	}
+	if status == model.TaskStatusSuccess {
+		if inner := extractRelayInnerTask(relayResp.Data.Data); inner != nil {
+			taskInfo.Url = inner.Content.VideoURL
+			taskInfo.CompletionTokens = inner.Usage.CompletionTokens
+			taskInfo.TotalTokens = inner.Usage.TotalTokens
+			taskInfo.Resolution = inner.Resolution
+		}
+	}
+	return taskInfo, nil
+}
+
+// extractRelayInnerTask 逐层拆开中继信封（可能多级 new-api 串联，每级包一层 data），
+// 直到最内层火山原生任务数据（含 video_url/usage/resolution）。
+func extractRelayInnerTask(raw json.RawMessage) *responseTask {
+	for depth := 0; depth < 6 && len(raw) > 0; depth++ {
+		var probe struct {
+			responseTask
+			Data json.RawMessage `json:"data"`
+		}
+		if err := common.Unmarshal(raw, &probe); err != nil {
+			return nil
+		}
+		if probe.Content.VideoURL != "" || probe.Usage.TotalTokens > 0 || probe.Resolution != "" {
+			return &probe.responseTask
+		}
+		raw = probe.Data
+	}
+	return nil
 }
 
 func (a *TaskAdaptor) ConvertToOpenAIVideo(originTask *model.Task) ([]byte, error) {

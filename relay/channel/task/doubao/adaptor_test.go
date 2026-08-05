@@ -122,3 +122,35 @@ func TestGetVideoBillingRatio(t *testing.T) {
 		})
 	}
 }
+
+func TestParseNewAPIRelayTaskResult(t *testing.T) {
+	// SUCCESS：内层为火山原生数据（含 URL/usage/分辨率）
+	body := []byte(`{"code":"success","data":{"status":"SUCCESS","progress":"100%","fail_reason":"","data":{"id":"cgt-1","status":"succeeded","content":{"video_url":"https://x/v.mp4"},"resolution":"1080p","usage":{"completion_tokens":100,"total_tokens":120}}}}`)
+	got, err := parseNewAPIRelayTaskResult(body)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if got.Status != "SUCCESS" || got.Url != "https://x/v.mp4" || got.TotalTokens != 120 || got.Resolution != "1080p" {
+		t.Fatalf("bad result: %+v", got)
+	}
+
+	// 双层嵌套信封（多级 new-api 串联）
+	nested := []byte(`{"code":"success","data":{"status":"SUCCESS","data":{"data":{"content":{"video_url":"https://x/n.mp4"},"resolution":"720p","usage":{"total_tokens":80}}}}}`)
+	got, err = parseNewAPIRelayTaskResult(nested)
+	if err != nil || got.Url != "https://x/n.mp4" || got.Resolution != "720p" {
+		t.Fatalf("nested parse failed: %+v err=%v", got, err)
+	}
+
+	// FAILURE 带原因
+	failBody := []byte(`{"code":"success","data":{"status":"FAILURE","progress":"100%","fail_reason":"content moderation"}}`)
+	got, err = parseNewAPIRelayTaskResult(failBody)
+	if err != nil || got.Status != "FAILURE" || got.Reason != "content moderation" {
+		t.Fatalf("failure parse failed: %+v err=%v", got, err)
+	}
+
+	// 火山原生响应（非信封）应判为不认识 → 回退原生解析
+	native := []byte(`{"id":"cgt-2","status":"succeeded","content":{"video_url":"https://x/v.mp4"}}`)
+	if _, err = parseNewAPIRelayTaskResult(native); err == nil {
+		t.Fatal("native body should not parse as relay envelope")
+	}
+}
