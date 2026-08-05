@@ -1,5 +1,7 @@
 package doubao
 
+import "strings"
+
 var ModelList = []string{
 	"doubao-seedance-1-0-pro-250528",
 	"doubao-seedance-1-0-lite-t2v",
@@ -22,6 +24,9 @@ type videoPricing struct {
 	supports1080 bool    // 是否支持 1080p 输出（fast 不支持）
 	highResNoVid float64 // 1080p + 不含视频
 	highResVideo float64 // 1080p + 含视频
+	supports4k   bool    // 是否支持 4k 输出（fast 不支持）
+	fourKNoVid   float64 // 4k + 不含视频
+	fourKVideo   float64 // 4k + 含视频
 }
 
 // seedance2Pricing / seedance2FastPricing 为 Seedance 2.0 标准版/快速版的定价。
@@ -34,11 +39,14 @@ var (
 		supports1080: true,
 		highResNoVid: 51,
 		highResVideo: 31,
+		supports4k:   true,
+		fourKNoVid:   26,
+		fourKVideo:   16,
 	}
 	seedance2FastPricing = videoPricing{
 		base:        37,
 		lowResVideo: 22,
-		// 不支持 1080p 输出
+		// 不支持 1080p/4k 输出
 	}
 )
 
@@ -50,16 +58,23 @@ var videoPricingMap = map[string]videoPricing{
 }
 
 // GetVideoBillingRatio 返回相对基准价(base)的计费比率，用于乘到基础额度上。
-// resolution 为请求中的输出分辨率（"480p"/"720p"/"1080p"，空字符串按默认 720p 档处理）；
-// hasVideo 表示输入是否包含视频。无对应定价时返回 (0, false)。
+// resolution 为请求中的输出分辨率（"480p"/"720p"/"1080p"/"4k"，大小写不敏感，
+// 空字符串按默认 720p 档处理）；hasVideo 表示输入是否包含视频。
+// 无对应定价时返回 (0, false)。
 func GetVideoBillingRatio(modelName, resolution string, hasVideo bool) (float64, bool) {
 	p, ok := videoPricingMap[modelName]
 	if !ok || p.base <= 0 {
 		return 0, false
 	}
-	is1080 := p.supports1080 && resolution == "1080p"
+	res := strings.ToLower(strings.TrimSpace(resolution))
+	is1080 := p.supports1080 && res == "1080p"
+	is4k := p.supports4k && res == "4k"
 	var price float64
 	switch {
+	case is4k && hasVideo:
+		price = p.fourKVideo
+	case is4k:
+		price = p.fourKNoVid
 	case is1080 && hasVideo:
 		price = p.highResVideo
 	case is1080:
