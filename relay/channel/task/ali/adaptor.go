@@ -57,6 +57,8 @@ type AliVideoParameters struct {
 	Resolution   string `json:"resolution,omitempty"`    // 分辨率: 480P/720P/1080P（图生视频、首尾帧生视频）
 	Size         string `json:"size,omitempty"`          // 尺寸: 如 "832*480"（文生视频）
 	Ratio        string `json:"ratio,omitempty"`         // 宽高比: 如 "16:9"（happyhorse t2v/r2v）
+	Mode         string `json:"mode,omitempty"`          // 生成模式: std/pro（kling 系列）
+	AspectRatio  string `json:"aspect_ratio,omitempty"`  // 宽高比: 如 "16:9"（kling 系列）
 	Duration     int    `json:"duration,omitempty"`      // 时长: 3-15秒
 	PromptExtend bool   `json:"prompt_extend,omitempty"` // 是否开启prompt智能改写
 	Watermark    *bool  `json:"watermark,omitempty"`     // 是否添加水印（happyhorse 上游默认 true，需显式传 false 去水印）
@@ -109,6 +111,8 @@ type AliMetadata struct {
 	Resolution   *string `json:"resolution,omitempty"`    // 分辨率: 480P/720P/1080P
 	Size         *string `json:"size,omitempty"`          // 尺寸: 如 "832*480"
 	Ratio        *string `json:"ratio,omitempty"`         // 宽高比: 如 "16:9"
+	Mode         *string `json:"mode,omitempty"`          // 生成模式: std/pro（kling 系列）
+	AspectRatio  *string `json:"aspect_ratio,omitempty"`  // 宽高比: 如 "16:9"（kling 系列）
 	Duration     *int    `json:"duration,omitempty"`      // 时长
 	PromptExtend *bool   `json:"prompt_extend,omitempty"` // 是否开启prompt智能改写
 	Watermark    *bool   `json:"watermark,omitempty"`     // 是否添加水印
@@ -260,6 +264,17 @@ var aliRatios = map[string]map[string]float64{
 		"720P":  1,
 		"1080P": 1.28 / 0.72,
 	},
+	// kling v3（百炼）：基准 720P 无声 ¥0.6/s，1080P 无声 ¥0.8/s；有声统一 ×1.5（见 aliAudioRatios）
+	"kling/kling-v3-video-generation": {
+		"720P":  1,
+		"1080P": 0.8 / 0.6,
+	},
+}
+
+// aliAudioRatios 音频维度倍率：parameters.audio=true 时在分辨率档之上叠乘。
+// kling v3：720P 有声 ¥0.9=0.6×1.5，1080P 有声 ¥1.2=0.8×1.5，两档一致。
+var aliAudioRatios = map[string]float64{
+	"kling/kling-v3-video-generation": 1.5,
 }
 
 func ProcessAliOtherRatios(aliReq *AliVideoRequest) (map[string]float64, error) {
@@ -282,6 +297,11 @@ func ProcessAliOtherRatios(aliReq *AliVideoRequest) (map[string]float64, error) 
 	if otherRatio, ok := aliRatios[aliReq.Model]; ok {
 		if ratio, ok := otherRatio[resolution]; ok {
 			otherRatios[fmt.Sprintf("resolution-%s", resolution)] = ratio
+		}
+	}
+	if audioRatio, ok := aliAudioRatios[aliReq.Model]; ok {
+		if aliReq.Parameters.Audio != nil && *aliReq.Parameters.Audio {
+			otherRatios["audio"] = audioRatio
 		}
 	}
 	return otherRatios, nil
@@ -387,12 +407,18 @@ func isHappyHorseModel(model string) bool {
 	return strings.HasPrefix(model, "happyhorse")
 }
 
+// isKlingDashScopeModel 判断是否为百炼平台上的 kling 系列模型（如 kling/kling-v3-video-generation）
+func isKlingDashScopeModel(model string) bool {
+	return strings.HasPrefix(model, "kling/")
+}
+
 func (a *TaskAdaptor) convertToAliRequest(info *relaycommon.RelayInfo, req relaycommon.TaskSubmitReq) (*AliVideoRequest, error) {
 	upstreamModel := req.Model
 	if info.IsModelMapped {
 		upstreamModel = info.UpstreamModelName
 	}
 	isHappyHorse := isHappyHorseModel(req.Model)
+	isKling := isKlingDashScopeModel(req.Model)
 	aliReq := &AliVideoRequest{
 		Model: upstreamModel,
 		Input: AliVideoInput{
@@ -400,13 +426,15 @@ func (a *TaskAdaptor) convertToAliRequest(info *relaycommon.RelayInfo, req relay
 			ImgURL: firstTaskImage(req),
 		},
 		Parameters: &AliVideoParameters{
-			PromptExtend: !isHappyHorse, // wan 默认开启智能改写；happyhorse 无此参数
+			PromptExtend: !isHappyHorse && !isKling, // wan 默认开启智能改写；happyhorse/kling 无此参数
 		},
 	}
-	if isHappyHorse {
-		// happyhorse 上游默认加水印，转售场景默认显式关闭（metadata.watermark 可覆盖）
+	if isHappyHorse || isKling {
+		// happyhorse/kling 上游默认加水印，转售场景默认显式关闭（metadata.watermark 可覆盖）
 		watermarkOff := false
 		aliReq.Parameters.Watermark = &watermarkOff
+	}
+	if isHappyHorse {
 		aliReq.Input.ImgURL = "" // happyhorse 用 media 数组，不用 img_url
 	}
 
@@ -423,7 +451,9 @@ func (a *TaskAdaptor) convertToAliRequest(info *relaycommon.RelayInfo, req relay
 		}
 	} else {
 		// 根据模型设置默认分辨率
-		if isHappyHorse {
+		if isKling {
+			// kling 系列不强制下发分辨率：上游默认 720P，计费亦按 720P 基准档
+		} else if isHappyHorse {
 			aliReq.Parameters.Resolution = "1080P" // happyhorse 各模式上游默认均为 1080P
 		} else if strings.Contains(req.Model, "t2v") { // text to video
 			if strings.HasPrefix(req.Model, "wan2.5") {
@@ -565,6 +595,12 @@ func applyFlatMetadata(aliReq *AliVideoRequest, meta *AliMetadata) {
 	}
 	if meta.Ratio != nil {
 		aliReq.Parameters.Ratio = *meta.Ratio
+	}
+	if meta.Mode != nil {
+		aliReq.Parameters.Mode = *meta.Mode
+	}
+	if meta.AspectRatio != nil {
+		aliReq.Parameters.AspectRatio = *meta.AspectRatio
 	}
 	if meta.Duration != nil {
 		aliReq.Parameters.Duration = *meta.Duration

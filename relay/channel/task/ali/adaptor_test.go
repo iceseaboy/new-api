@@ -170,3 +170,39 @@ func TestConvertToAliRequestWan25I2VKeepsLegacyImgURL(t *testing.T) {
 	require.Contains(t, string(body), `"img_url"`)
 	require.NotContains(t, string(body), `"media"`)
 }
+
+func TestKlingV3Ratios(t *testing.T) {
+	mk := func(res string, audio *bool) *AliVideoRequest {
+		return &AliVideoRequest{
+			Model:      "kling/kling-v3-video-generation",
+			Parameters: &AliVideoParameters{Resolution: res, Audio: audio},
+		}
+	}
+	on, off := true, false
+	cases := []struct {
+		name string
+		req  *AliVideoRequest
+		want float64 // 各倍率乘积
+	}{
+		{"720P 无声 基准", mk("720P", &off), 1.0},
+		{"720P 有声 ×1.5", mk("720P", &on), 1.5},
+		{"1080P 无声", mk("1080P", &off), 0.8 / 0.6},
+		{"1080P 有声 =2.0", mk("1080P", &on), (0.8 / 0.6) * 1.5},
+		{"缺省分辨率按720P档", mk("", &off), 1.0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ratios, err := ProcessAliOtherRatios(tc.req)
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
+			got := 1.0
+			for _, r := range ratios {
+				got *= r
+			}
+			if diff := got - tc.want; diff > 1e-9 || diff < -1e-9 {
+				t.Fatalf("ratio = %v, want %v (ratios=%v)", got, tc.want, ratios)
+			}
+		})
+	}
+}
