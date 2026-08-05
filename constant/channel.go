@@ -55,6 +55,7 @@ const (
 	ChannelTypeSora           = 55
 	ChannelTypeReplicate      = 56
 	ChannelTypeCodex          = 57
+	ChannelTypeNewAPI         = 60 // 与 upstream 编号保持一致（58/59 上游已占用）
 	ChannelTypeDummy          // this one is only for count, do not add any channel after this
 
 )
@@ -118,6 +119,9 @@ var ChannelBaseURLs = []string{
 	"https://api.openai.com",                    //55
 	"https://api.replicate.com",                 //56
 	"https://chatgpt.com",                       //57
+	"",                                          //58
+	"",                                          //59
+	"",                                          //60 NewAPI（无默认地址，渠道必须填 base_url）
 }
 
 var ChannelTypeNames = map[int]string{
@@ -175,6 +179,7 @@ var ChannelTypeNames = map[int]string{
 	ChannelTypeSora:           "Sora",
 	ChannelTypeReplicate:      "Replicate",
 	ChannelTypeCodex:          "Codex",
+	ChannelTypeNewAPI:         "New API",
 }
 
 func GetChannelTypeName(channelType int) string {
