@@ -7,13 +7,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-//go:embed doc/seedance-video-generation.md doc/seedance-asset-management.md doc/kling-video-generation.md
+//go:embed doc/seedance-video-generation.md doc/seedance-asset-management.md doc/kling-video-generation.md doc/happyhorse-video-generation.md
 var docFS embed.FS
 
 // SetDocRouter 注册公开的 API 文档内容接口（无需登录鉴权）。
 //
-// 文档页面本身由前端 SPA 在 /doc 路由内渲染，复用平台布局（HeaderBar/SiderBar）
-// 与样式；这里只提供 markdown 原文接口供前端 DocumentRenderer 拉取。
+// 文档页面本身由前端 SPA 在 /docs 路由内渲染，复用平台布局与样式；
+// 这里只提供 markdown 原文接口供前端拉取。
 // 返回 {success, data} 格式，与平台其它文档接口（user-agreement 等）一致。
 func SetDocRouter(router *gin.Engine) {
 	doc := router.Group("/api/doc")
@@ -21,7 +21,12 @@ func SetDocRouter(router *gin.Engine) {
 		doc.GET("/seedance-video", docContent("doc/seedance-video-generation.md"))
 		doc.GET("/seedance-asset", docContent("doc/seedance-asset-management.md"))
 		doc.GET("/kling-video", docContent("doc/kling-video-generation.md"))
+		doc.GET("/happyhorse-video", docContent("doc/happyhorse-video-generation.md"))
 	}
+	// 旧版文档页地址 /doc 兼容跳转（classic 时代的入口）
+	router.GET("/doc", func(c *gin.Context) {
+		c.Redirect(http.StatusMovedPermanently, "/docs")
+	})
 }
 
 func docContent(embedPath string) gin.HandlerFunc {

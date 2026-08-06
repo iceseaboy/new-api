@@ -36,6 +36,7 @@ const DOC_ENTRIES: DocEntry[] = [
   { key: 'seedance-video', title: 'Seedance 视频生成' },
   { key: 'seedance-asset', title: 'Seedance 素材库' },
   { key: 'kling-video', title: 'Kling 视频生成' },
+  { key: 'happyhorse-video', title: 'HappyHorse 视频生成' },
 ]
 
 interface DocResponse {
