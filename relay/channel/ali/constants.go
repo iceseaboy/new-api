@@ -12,6 +12,7 @@ var ModelList = []string{
 	"vidu/viduq2-fast_reference2image",
 	"vidu/viduq2-pro_reference2image",
 	"vidu/viduq3-fast_reference2image",
+	"kling/kling-v3-image-generation",
 }
 
 var ChannelName = "ali"

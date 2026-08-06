@@ -65,10 +65,14 @@ func isSyncImageModel(modelName string) bool {
 	return model_setting.IsSyncImageModel(modelName)
 }
 
-// isViduImageModel 判断是否为百炼平台上的 Vidu 参考生图模型（如 vidu/viduq3-fast_reference2image）。
-// 该系列走 DashScope 异步 image-generation 端点，与 wanx 的 text2image 不同。
+// isViduImageModel 判断是否为百炼平台上走 DashScope 异步 image-generation 端点、
+// 请求体为 multimodal messages 结构的三方图片模型（vidu 系列、kling 图片版）。
+// 与 wanx 的 text2image 端点及 qwen-image 的同步端点均不同。
 func isViduImageModel(modelName string) bool {
-	return strings.HasPrefix(modelName, "vidu/")
+	if strings.HasPrefix(modelName, "vidu/") {
+		return true
+	}
+	return strings.HasPrefix(modelName, "kling/") && strings.Contains(modelName, "image")
 }
 
 func (a *Adaptor) ConvertGeminiRequest(*gin.Context, *relaycommon.RelayInfo, *dto.GeminiChatRequest) (any, error) {
