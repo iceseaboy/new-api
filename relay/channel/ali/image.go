@@ -69,8 +69,9 @@ func oaiImage2AliImageRequest(info *relaycommon.RelayInfo, request dto.ImageRequ
 		info.PriceData.AddOtherRatio("n", float64(imageRequest.Parameters.N))
 	}
 
-	// 同步图片模型和异步图片模型请求格式不一样
-	if isSync {
+	// 同步图片模型和异步图片模型请求格式不一样；
+	// vidu 系列虽走异步任务流程，但请求体用 multimodal messages 结构（与同步模型一致）
+	if isSync || isViduImageModel(request.Model) {
 		if imageRequest.Input == nil {
 			imageRequest.Input = AliImageInput{
 				Messages: []AliMessage{
