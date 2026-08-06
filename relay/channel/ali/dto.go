@@ -172,6 +172,7 @@ type AliImageRequest struct {
 
 type AliImageParameters struct {
 	Size             string `json:"size,omitempty"`
+	Resolution       string `json:"resolution,omitempty"` // 分辨率档: 1K/2K/4K（vidu 系列）
 	N                int    `json:"n,omitempty"`
 	Steps            string `json:"steps,omitempty"`
 	Scale            string `json:"scale,omitempty"`

@@ -54,6 +54,11 @@ func oaiImage2AliImageRequest(info *relaycommon.RelayInfo, request dto.ImageRequ
 		}
 	}
 
+	// vidu 系列按输出分辨率档计费（ModelPrice 为 1K 基准价）
+	if tier, ratio, ok := viduImageResolutionRatio(request.Model, &imageRequest.Parameters); ok && ratio != 1.0 {
+		info.PriceData.AddOtherRatio("resolution-"+tier, ratio)
+	}
+
 	// Parameters may come from Extra["parameters"], bypassing the standard
 	// top-level n validation; enforce the same bound before it becomes a
 	// billing multiplier.
@@ -90,6 +95,51 @@ func oaiImage2AliImageRequest(info *relaycommon.RelayInfo, request dto.ImageRequ
 
 	return &imageRequest, nil
 }
+// viduImagePriceTiers 各 vidu 模型分辨率档相对 1K 基准价的计费倍率。
+var viduImagePriceTiers = map[string]map[string]float64{
+	"vidu/viduq2-fast_reference2image": {"1K": 1}, // 仅 1K 档
+	"vidu/viduq2-pro_reference2image":  {"1K": 1, "2K": 1, "4K": 1.71875 / 0.9375},
+	"vidu/viduq3-fast_reference2image": {"1K": 1, "2K": 0.78125 / 0.46875, "4K": 1.09375 / 0.46875},
+}
+
+// viduImageResolutionRatio 解析请求的分辨率档并返回计费倍率。
+// 档位来源优先级：parameters.resolution（1K/2K/4K）> parameters.size 最长边推断 > 默认 1K。
+// 未配置价目的模型返回 ok=false；未知档位按 1K 基准价。
+func viduImageResolutionRatio(modelName string, params *AliImageParameters) (string, float64, bool) {
+	tiers, ok := viduImagePriceTiers[modelName]
+	if !ok {
+		return "", 0, false
+	}
+	tier := strings.ToUpper(strings.TrimSpace(params.Resolution))
+	if tier == "" && params.Size != "" {
+		maxSide := 0
+		for _, part := range strings.FieldsFunc(params.Size, func(r rune) bool { return r == '*' || r == 'x' || r == 'X' }) {
+			var v int
+			if _, err := fmt.Sscanf(strings.TrimSpace(part), "%d", &v); err == nil && v > maxSide {
+				maxSide = v
+			}
+		}
+		switch {
+		case maxSide == 0:
+		case maxSide <= 1536:
+			tier = "1K"
+		case maxSide <= 3072:
+			tier = "2K"
+		default:
+			tier = "4K"
+		}
+	}
+	if tier == "" {
+		tier = "1K"
+	}
+	ratio, ok := tiers[tier]
+	if !ok {
+		// 该模型不支持的档位（如 q2-fast 无 2K/4K），上游会自行报错，按基准价即可
+		return tier, 1.0, true
+	}
+	return tier, ratio, true
+}
+
 func getImageBase64sFromForm(c *gin.Context, fieldName string) ([]string, error) {
 	mf := c.Request.MultipartForm
 	if mf == nil {

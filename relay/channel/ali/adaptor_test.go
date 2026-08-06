@@ -126,3 +126,35 @@ func TestConvertOpenAIRequestPreservesExplicitZeroForMappedQwenModel(t *testing.
 	assert.True(t, value.Exists())
 	assert.Equal(t, int64(0), value.Int())
 }
+
+func TestViduImageResolutionRatio(t *testing.T) {
+	cases := []struct {
+		name      string
+		model     string
+		params    AliImageParameters
+		wantTier  string
+		wantRatio float64
+		wantOK    bool
+	}{
+		{"q3-fast 默认1K", "vidu/viduq3-fast_reference2image", AliImageParameters{}, "1K", 1.0, true},
+		{"q3-fast resolution=2K", "vidu/viduq3-fast_reference2image", AliImageParameters{Resolution: "2k"}, "2K", 0.78125 / 0.46875, true},
+		{"q3-fast size推断4K", "vidu/viduq3-fast_reference2image", AliImageParameters{Size: "4096*2160"}, "4K", 1.09375 / 0.46875, true},
+		{"q2-pro 2K同1K价", "vidu/viduq2-pro_reference2image", AliImageParameters{Size: "2048*2048"}, "2K", 1.0, true},
+		{"q2-pro 4K", "vidu/viduq2-pro_reference2image", AliImageParameters{Resolution: "4K"}, "4K", 1.71875 / 0.9375, true},
+		{"q2-fast 不支持档按基准", "vidu/viduq2-fast_reference2image", AliImageParameters{Resolution: "4K"}, "4K", 1.0, true},
+		{"非vidu模型", "wanx-v1", AliImageParameters{}, "", 0, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tier, ratio, ok := viduImageResolutionRatio(tc.model, &tc.params)
+			if ok != tc.wantOK || tier != tc.wantTier {
+				t.Fatalf("tier=%q ok=%v, want %q %v", tier, ok, tc.wantTier, tc.wantOK)
+			}
+			if ok {
+				if d := ratio - tc.wantRatio; d > 1e-9 || d < -1e-9 {
+					t.Fatalf("ratio=%v want %v", ratio, tc.wantRatio)
+				}
+			}
+		})
+	}
+}

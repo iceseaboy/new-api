@@ -65,6 +65,12 @@ func isSyncImageModel(modelName string) bool {
 	return model_setting.IsSyncImageModel(modelName)
 }
 
+// isViduImageModel 判断是否为百炼平台上的 Vidu 参考生图模型（如 vidu/viduq3-fast_reference2image）。
+// 该系列走 DashScope 异步 image-generation 端点，与 wanx 的 text2image 不同。
+func isViduImageModel(modelName string) bool {
+	return strings.HasPrefix(modelName, "vidu/")
+}
+
 func (a *Adaptor) ConvertGeminiRequest(*gin.Context, *relaycommon.RelayInfo, *dto.GeminiChatRequest) (any, error) {
 	//TODO implement me
 	return nil, errors.New("not implemented")
@@ -110,7 +116,9 @@ func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
 		case constant.RelayModeResponses:
 			fullRequestURL = fmt.Sprintf("%s/api/v2/apps/protocols/compatible-mode/v1/responses", info.ChannelBaseUrl)
 		case constant.RelayModeImagesGenerations:
-			if isSyncImageModel(info.OriginModelName) {
+			if isViduImageModel(info.OriginModelName) {
+				fullRequestURL = fmt.Sprintf("%s/api/v1/services/aigc/image-generation/generation", info.ChannelBaseUrl)
+			} else if isSyncImageModel(info.OriginModelName) {
 				fullRequestURL = fmt.Sprintf("%s/api/v1/services/aigc/multimodal-generation/generation", info.ChannelBaseUrl)
 			} else {
 				fullRequestURL = fmt.Sprintf("%s/api/v1/services/aigc/text2image/image-synthesis", info.ChannelBaseUrl)
