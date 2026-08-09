@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/pkg/ionet"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/pkg/ionet"
 	"github.com/gin-gonic/gin"
 )
 

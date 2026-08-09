@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/constant"
-	commonRelay "github.com/QuantumNous/new-api/relay/common"
-	"github.com/QuantumNous/new-api/relaykit/dto"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/constant"
+	commonRelay "github.com/QuantumNous/opclink/relay/common"
+	"github.com/QuantumNous/opclink/relaykit/dto"
 )
 
 type TaskStatus string
@@ -80,7 +80,7 @@ func (t *Task) GetData(v any) error {
 
 type Properties struct {
 	Input             string `json:"input"`
-	RequestId         string `json:"request_id,omitempty"`          // new-api 平台请求 ID
+	RequestId         string `json:"request_id,omitempty"`          // opclink 平台请求 ID
 	UpstreamRequestId string `json:"upstream_request_id,omitempty"` // 提交时上游返回的请求 ID
 	TokenName         string `json:"token_name,omitempty"`          // 发起请求的令牌名称
 	UpstreamModelName string `json:"upstream_model_name,omitempty"`

@@ -10,13 +10,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/constant"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	"github.com/QuantumNous/new-api/relay/helper"
-	"github.com/QuantumNous/new-api/relaykit/dto"
-	"github.com/QuantumNous/new-api/relaykit/types"
-	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/constant"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	"github.com/QuantumNous/opclink/relay/helper"
+	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/opclink/relaykit/types"
+	"github.com/QuantumNous/opclink/service"
 	"github.com/samber/lo"
 
 	"github.com/gin-gonic/gin"
@@ -114,7 +114,7 @@ func embeddingResponseBaidu2OpenAI(response *BaiduEmbeddingResponse) *dto.OpenAI
 	return &openAIEmbeddingResponse
 }
 
-func baiduStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*types.NewAPIError, *dto.Usage) {
+func baiduStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*types.OPCLinkError, *dto.Usage) {
 	usage := &dto.Usage{}
 	helper.StreamScannerHandler(c, resp, info, func(data string, sr *helper.StreamResult) {
 		var baiduResponse BaiduChatStreamResponse
@@ -138,7 +138,7 @@ func baiduStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.
 	return nil, usage
 }
 
-func baiduHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*types.NewAPIError, *dto.Usage) {
+func baiduHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*types.OPCLinkError, *dto.Usage) {
 	var baiduResponse BaiduChatResponse
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -163,7 +163,7 @@ func baiduHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Respon
 	return nil, &fullTextResponse.Usage
 }
 
-func baiduEmbeddingHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*types.NewAPIError, *dto.Usage) {
+func baiduEmbeddingHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*types.OPCLinkError, *dto.Usage) {
 	var baiduResponse BaiduEmbeddingResponse
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {

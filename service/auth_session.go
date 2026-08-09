@@ -7,13 +7,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/model"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-const RefreshCookieName = "new_api_refresh"
+const RefreshCookieName = "opclink_refresh"
 
 var (
 	ErrLoginSessionInvalid  = errors.New("login session is invalid")

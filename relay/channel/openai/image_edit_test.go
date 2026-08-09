@@ -8,10 +8,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/QuantumNous/new-api/common"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	relayconstant "github.com/QuantumNous/new-api/relay/constant"
-	"github.com/QuantumNous/new-api/relaykit/dto"
+	"github.com/QuantumNous/opclink/common"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	relayconstant "github.com/QuantumNous/opclink/relay/constant"
+	"github.com/QuantumNous/opclink/relaykit/dto"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )

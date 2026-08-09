@@ -1,4 +1,4 @@
-module github.com/QuantumNous/new-api
+module github.com/QuantumNous/opclink
 
 // +heroku goVersion go1.18
 go 1.25.1
@@ -164,7 +164,7 @@ require (
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.32.0
-	github.com/QuantumNous/new-api/relaykit v0.0.0
+	github.com/QuantumNous/opclink/relaykit v0.0.0
 )
 
-replace github.com/QuantumNous/new-api/relaykit => ./relaykit
+replace github.com/QuantumNous/opclink/relaykit => ./relaykit

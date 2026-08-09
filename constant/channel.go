@@ -57,7 +57,7 @@ const (
 	ChannelTypeCodex          = 57
 	ChannelTypeAdvancedCustom = 58
 	ChannelTypeSub2API        = 59
-	ChannelTypeNewAPI         = 60
+	ChannelTypeOPCLink         = 60
 	ChannelTypeDummy          // this one is only for count, do not add any channel after this
 
 )
@@ -183,7 +183,7 @@ var ChannelTypeNames = map[int]string{
 	ChannelTypeCodex:          "ChatGPT Subscription (Codex)",
 	ChannelTypeAdvancedCustom: "Advanced Custom",
 	ChannelTypeSub2API:        "Sub2API",
-	ChannelTypeNewAPI:         "New API",
+	ChannelTypeOPCLink:         "OPCLink",
 }
 
 func GetChannelTypeName(channelType int) string {

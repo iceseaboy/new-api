@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	"github.com/QuantumNous/new-api/relaykit/dto"
-	"github.com/QuantumNous/new-api/relaykit/relayconvert"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/opclink/relaykit/relayconvert"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

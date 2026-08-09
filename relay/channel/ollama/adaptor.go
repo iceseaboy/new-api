@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/QuantumNous/new-api/relay/channel"
-	"github.com/QuantumNous/new-api/relay/channel/openai"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	relayconstant "github.com/QuantumNous/new-api/relay/constant"
-	"github.com/QuantumNous/new-api/relaykit/dto"
-	"github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/QuantumNous/opclink/relay/channel"
+	"github.com/QuantumNous/opclink/relay/channel/openai"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	relayconstant "github.com/QuantumNous/opclink/relay/constant"
+	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/opclink/relaykit/types"
 
 	"github.com/gin-gonic/gin"
 )
@@ -90,7 +90,7 @@ func (a *Adaptor) DoRequest(c *gin.Context, info *relaycommon.RelayInfo, request
 	return channel.DoApiRequest(a, c, info, requestBody)
 }
 
-func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (usage any, err *types.NewAPIError) {
+func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (usage any, err *types.OPCLinkError) {
 	switch info.RelayMode {
 	case relayconstant.RelayModeEmbeddings:
 		return ollamaEmbeddingHandler(c, info, resp)

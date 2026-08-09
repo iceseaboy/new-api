@@ -6,16 +6,16 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/constant"
-	"github.com/QuantumNous/new-api/logger"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	"github.com/QuantumNous/new-api/relay/helper"
-	"github.com/QuantumNous/new-api/relaykit/dto"
-	"github.com/QuantumNous/new-api/relaykit/relayconvert"
-	"github.com/QuantumNous/new-api/relaykit/types"
-	"github.com/QuantumNous/new-api/service"
-	"github.com/QuantumNous/new-api/setting/model_setting"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/constant"
+	"github.com/QuantumNous/opclink/logger"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	"github.com/QuantumNous/opclink/relay/helper"
+	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/opclink/relaykit/relayconvert"
+	"github.com/QuantumNous/opclink/relaykit/types"
+	"github.com/QuantumNous/opclink/service"
+	"github.com/QuantumNous/opclink/setting/model_setting"
 
 	"github.com/gin-gonic/gin"
 )
@@ -51,7 +51,7 @@ func trimModelThinking(modelName string) string {
 	return modelName
 }
 
-func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *types.NewAPIError) {
+func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (opclinkError *types.OPCLinkError) {
 	info.InitChannelMeta(c)
 
 	geminiReq, ok := info.Request.(*dto.GeminiChatRequest)
@@ -158,7 +158,7 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 		if len(info.ParamOverride) > 0 {
 			jsonData, err = relaycommon.ApplyParamOverrideWithRelayInfo(jsonData, info)
 			if err != nil {
-				return newAPIErrorFromParamOverride(err)
+				return opclinkErrorFromParamOverride(err)
 			}
 		}
 
@@ -186,10 +186,10 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 		httpResp = resp.(*http.Response)
 		info.IsStream = info.IsStream || strings.HasPrefix(httpResp.Header.Get("Content-Type"), "text/event-stream")
 		if httpResp.StatusCode != http.StatusOK {
-			newAPIError = service.RelayErrorHandler(c.Request.Context(), httpResp, false)
+			opclinkError = service.RelayErrorHandler(c.Request.Context(), httpResp, false)
 			// reset status code 重置状态码
-			service.ResetStatusCode(newAPIError, statusCodeMappingStr)
-			return newAPIError
+			service.ResetStatusCode(opclinkError, statusCodeMappingStr)
+			return opclinkError
 		}
 	}
 
@@ -203,7 +203,7 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 	return nil
 }
 
-func GeminiEmbeddingHandler(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *types.NewAPIError) {
+func GeminiEmbeddingHandler(c *gin.Context, info *relaycommon.RelayInfo) (opclinkError *types.OPCLinkError) {
 	info.InitChannelMeta(c)
 
 	isBatch := strings.HasSuffix(c.Request.URL.Path, "batchEmbedContents")
@@ -264,7 +264,7 @@ func GeminiEmbeddingHandler(c *gin.Context, info *relaycommon.RelayInfo) (newAPI
 	if len(info.ParamOverride) > 0 {
 		jsonData, err = relaycommon.ApplyParamOverrideWithRelayInfo(jsonData, info)
 		if err != nil {
-			return newAPIErrorFromParamOverride(err)
+			return opclinkErrorFromParamOverride(err)
 		}
 	}
 	logger.LogDebug(c, "Gemini embedding request body: %s", jsonData)
@@ -287,9 +287,9 @@ func GeminiEmbeddingHandler(c *gin.Context, info *relaycommon.RelayInfo) (newAPI
 	if resp != nil {
 		httpResp = resp.(*http.Response)
 		if httpResp.StatusCode != http.StatusOK {
-			newAPIError = service.RelayErrorHandler(c.Request.Context(), httpResp, false)
-			service.ResetStatusCode(newAPIError, statusCodeMappingStr)
-			return newAPIError
+			opclinkError = service.RelayErrorHandler(c.Request.Context(), httpResp, false)
+			service.ResetStatusCode(opclinkError, statusCodeMappingStr)
+			return opclinkError
 		}
 	}
 

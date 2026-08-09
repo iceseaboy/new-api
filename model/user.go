@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/logger"
-	"github.com/QuantumNous/new-api/relaykit/dto"
-	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/logger"
+	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/opclink/setting/operation_setting"
 
 	"github.com/bytedance/gopkg/util/gopool"
 	"gorm.io/gorm"

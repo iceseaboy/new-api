@@ -6,20 +6,20 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/logger"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	relayconstant "github.com/QuantumNous/new-api/relay/constant"
-	"github.com/QuantumNous/new-api/relay/helper"
-	"github.com/QuantumNous/new-api/relaykit/dto"
-	"github.com/QuantumNous/new-api/relaykit/types"
-	"github.com/QuantumNous/new-api/service"
-	"github.com/QuantumNous/new-api/setting/model_setting"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/logger"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	relayconstant "github.com/QuantumNous/opclink/relay/constant"
+	"github.com/QuantumNous/opclink/relay/helper"
+	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/opclink/relaykit/types"
+	"github.com/QuantumNous/opclink/service"
+	"github.com/QuantumNous/opclink/setting/model_setting"
 
 	"github.com/gin-gonic/gin"
 )
 
-func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *types.NewAPIError) {
+func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (opclinkError *types.OPCLinkError) {
 	info.InitChannelMeta(c)
 	if info.RelayMode == relayconstant.RelayModeResponsesCompact &&
 		!common.IsResponsesCompactAPIType(info.ApiType) {
@@ -104,7 +104,7 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *
 		if len(info.ParamOverride) > 0 {
 			jsonData, err = relaycommon.ApplyParamOverrideWithRelayInfo(jsonData, info)
 			if err != nil {
-				return newAPIErrorFromParamOverride(err)
+				return opclinkErrorFromParamOverride(err)
 			}
 		}
 
@@ -130,18 +130,18 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *
 		httpResp = resp.(*http.Response)
 
 		if httpResp.StatusCode != http.StatusOK {
-			newAPIError = service.RelayErrorHandler(c.Request.Context(), httpResp, false)
+			opclinkError = service.RelayErrorHandler(c.Request.Context(), httpResp, false)
 			// reset status code 重置状态码
-			service.ResetStatusCode(newAPIError, statusCodeMappingStr)
-			return newAPIError
+			service.ResetStatusCode(opclinkError, statusCodeMappingStr)
+			return opclinkError
 		}
 	}
 
-	usage, newAPIError := adaptor.DoResponse(c, httpResp, info)
-	if newAPIError != nil {
+	usage, opclinkError := adaptor.DoResponse(c, httpResp, info)
+	if opclinkError != nil {
 		// reset status code 重置状态码
-		service.ResetStatusCode(newAPIError, statusCodeMappingStr)
-		return newAPIError
+		service.ResetStatusCode(opclinkError, statusCodeMappingStr)
+		return opclinkError
 	}
 
 	usageDto := usage.(*dto.Usage)

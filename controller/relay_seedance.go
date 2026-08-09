@@ -7,14 +7,14 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/constant"
-	"github.com/QuantumNous/new-api/logger"
-	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/relay"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	"github.com/QuantumNous/new-api/service"
-	"github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/constant"
+	"github.com/QuantumNous/opclink/logger"
+	"github.com/QuantumNous/opclink/model"
+	"github.com/QuantumNous/opclink/relay"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	"github.com/QuantumNous/opclink/service"
+	"github.com/QuantumNous/opclink/relaykit/types"
 
 	"github.com/gin-gonic/gin"
 )
@@ -27,16 +27,16 @@ func RelaySeedanceAsset(c *gin.Context) {
 
 	relayInfo, err := relaycommon.GenRelayInfo(c, types.RelayFormatTask, nil, nil)
 	if err != nil {
-		newAPIError := types.NewError(fmt.Errorf("生成 relay 信息失败: %w", err), types.ErrorCodeGenRelayInfoFailed)
-		logger.LogError(c, fmt.Sprintf("relay error: %s", newAPIError.Error()))
-		newAPIError.SetMessage(common.MessageWithRequestId(newAPIError.Error(), requestId))
-		c.JSON(newAPIError.StatusCode, gin.H{
-			"error": newAPIError.ToOpenAIError(),
+		opclinkError := types.NewError(fmt.Errorf("生成 relay 信息失败: %w", err), types.ErrorCodeGenRelayInfoFailed)
+		logger.LogError(c, fmt.Sprintf("relay error: %s", opclinkError.Error()))
+		opclinkError.SetMessage(common.MessageWithRequestId(opclinkError.Error(), requestId))
+		c.JSON(opclinkError.StatusCode, gin.H{
+			"error": opclinkError.ToOpenAIError(),
 		})
 		return
 	}
 
-	var newAPIError *types.NewAPIError
+	var opclinkError *types.OPCLinkError
 
 	retryParam := &service.RetryParam{
 		Ctx:        c,
@@ -49,7 +49,7 @@ func RelaySeedanceAsset(c *gin.Context) {
 		channel, channelErr := getChannel(c, relayInfo, retryParam)
 		if channelErr != nil {
 			logger.LogError(c, channelErr.Error())
-			newAPIError = channelErr
+			opclinkError = channelErr
 			break
 		}
 
@@ -57,36 +57,36 @@ func RelaySeedanceAsset(c *gin.Context) {
 
 		bodyStorage, bodyErr := common.GetBodyStorage(c)
 		if bodyErr != nil {
-			newAPIError = types.NewErrorWithStatusCode(bodyErr, types.ErrorCodeReadRequestBodyFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
+			opclinkError = types.NewErrorWithStatusCode(bodyErr, types.ErrorCodeReadRequestBodyFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 			break
 		}
 		c.Request.Body = io.NopCloser(bodyStorage)
 
-		newAPIError = relay.SeedanceAssetHelper(c, relayInfo)
+		opclinkError = relay.SeedanceAssetHelper(c, relayInfo)
 
-		if newAPIError == nil {
+		if opclinkError == nil {
 			// 成功（响应已写回客户端）
 			return
 		}
 
 		// 渠道错误处理
-		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
+		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), opclinkError)
 
-		if !shouldRetry(c, newAPIError, common.RetryTimes-retryParam.GetRetry()) {
+		if !shouldRetry(c, opclinkError, common.RetryTimes-retryParam.GetRetry()) {
 			break
 		}
 	}
 
 	// 所有重试用完仍失败
-	if newAPIError != nil {
+	if opclinkError != nil {
 		useChannel := c.GetStringSlice("use_channel")
 		if len(useChannel) > 1 {
 			logger.LogInfo(c, fmt.Sprintf("重试：%s", strings.Trim(strings.Join(strings.Fields(fmt.Sprint(useChannel)), "->"), "[]")))
 		}
-		logger.LogError(c, fmt.Sprintf("relay error: %s", newAPIError.Error()))
-		newAPIError.SetMessage(common.MessageWithRequestId(newAPIError.Error(), requestId))
-		c.JSON(newAPIError.StatusCode, gin.H{
-			"error": newAPIError.ToOpenAIError(),
+		logger.LogError(c, fmt.Sprintf("relay error: %s", opclinkError.Error()))
+		opclinkError.SetMessage(common.MessageWithRequestId(opclinkError.Error(), requestId))
+		c.JSON(opclinkError.StatusCode, gin.H{
+			"error": opclinkError.ToOpenAIError(),
 		})
 	}
 }

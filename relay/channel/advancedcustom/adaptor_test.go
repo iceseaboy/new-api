@@ -8,14 +8,14 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/constant"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	relayconstant "github.com/QuantumNous/new-api/relay/constant"
-	"github.com/QuantumNous/new-api/relaykit/dto"
-	"github.com/QuantumNous/new-api/relaykit/relayconvert"
-	"github.com/QuantumNous/new-api/relaykit/types"
-	"github.com/QuantumNous/new-api/setting/model_setting"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/constant"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	relayconstant "github.com/QuantumNous/opclink/relay/constant"
+	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/opclink/relaykit/relayconvert"
+	"github.com/QuantumNous/opclink/relaykit/types"
+	"github.com/QuantumNous/opclink/setting/model_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -564,10 +564,10 @@ func TestAdaptorResponsesToGeminiUsesResponsesBridge(t *testing.T) {
 	body, err := common.Marshal(payload)
 	require.NoError(t, err)
 
-	usage, newAPIError := adaptor.DoResponse(c, &http.Response{
+	usage, opclinkError := adaptor.DoResponse(c, &http.Response{
 		Body: io.NopCloser(bytes.NewReader(body)),
 	}, info)
-	require.Nil(t, newAPIError)
+	require.Nil(t, opclinkError)
 	require.NotNil(t, usage)
 
 	got := recorder.Body.String()

@@ -3,11 +3,11 @@ package service
 import (
 	"strings"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/constant"
-	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/setting"
-	"github.com/QuantumNous/new-api/setting/ratio_setting"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/constant"
+	"github.com/QuantumNous/opclink/model"
+	"github.com/QuantumNous/opclink/setting"
+	"github.com/QuantumNous/opclink/setting/ratio_setting"
 	"github.com/gin-gonic/gin"
 )
 

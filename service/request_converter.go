@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	"github.com/QuantumNous/new-api/relaykit/dto"
-	"github.com/QuantumNous/new-api/relaykit/relayconvert"
-	"github.com/QuantumNous/new-api/relaykit/types"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/opclink/relaykit/relayconvert"
+	"github.com/QuantumNous/opclink/relaykit/types"
 	"github.com/gin-gonic/gin"
 )
 

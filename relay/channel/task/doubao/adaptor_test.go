@@ -3,8 +3,8 @@ package doubao
 import (
 	"testing"
 
-	"github.com/QuantumNous/new-api/constant"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/opclink/constant"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
 )
 
 func contentItem(typ, role string) map[string]interface{} {
@@ -123,10 +123,10 @@ func TestGetVideoInputRatio(t *testing.T) {
 	}
 }
 
-func TestParseNewAPIRelayTaskResult(t *testing.T) {
+func TestParseOPCLinkRelayTaskResult(t *testing.T) {
 	// SUCCESS：内层为火山原生数据（含 URL/usage/分辨率）
 	body := []byte(`{"code":"success","data":{"status":"SUCCESS","progress":"100%","fail_reason":"","data":{"id":"cgt-1","status":"succeeded","content":{"video_url":"https://x/v.mp4"},"resolution":"1080p","usage":{"completion_tokens":100,"total_tokens":120}}}}`)
-	got, err := parseNewAPIRelayTaskResult(body)
+	got, err := parseOPCLinkRelayTaskResult(body)
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
@@ -134,28 +134,28 @@ func TestParseNewAPIRelayTaskResult(t *testing.T) {
 		t.Fatalf("bad result: %+v", got)
 	}
 
-	// 双层嵌套信封（多级 new-api 串联）
+	// 双层嵌套信封（多级 opclink 串联）
 	nested := []byte(`{"code":"success","data":{"status":"SUCCESS","data":{"data":{"content":{"video_url":"https://x/n.mp4"},"resolution":"720p","usage":{"total_tokens":80}}}}}`)
-	got, err = parseNewAPIRelayTaskResult(nested)
+	got, err = parseOPCLinkRelayTaskResult(nested)
 	if err != nil || got.Url != "https://x/n.mp4" || got.Resolution != "720p" {
 		t.Fatalf("nested parse failed: %+v err=%v", got, err)
 	}
 
 	// FAILURE 带原因
 	failBody := []byte(`{"code":"success","data":{"status":"FAILURE","progress":"100%","fail_reason":"content moderation"}}`)
-	got, err = parseNewAPIRelayTaskResult(failBody)
+	got, err = parseOPCLinkRelayTaskResult(failBody)
 	if err != nil || got.Status != "FAILURE" || got.Reason != "content moderation" {
 		t.Fatalf("failure parse failed: %+v err=%v", got, err)
 	}
 
 	// 火山原生响应（非信封）应判为不认识 → 回退原生解析
 	native := []byte(`{"id":"cgt-2","status":"succeeded","content":{"video_url":"https://x/v.mp4"}}`)
-	if _, err = parseNewAPIRelayTaskResult(native); err == nil {
+	if _, err = parseOPCLinkRelayTaskResult(native); err == nil {
 		t.Fatal("native body should not parse as relay envelope")
 	}
 }
 
-func TestIsNewAPIRelay(t *testing.T) {
+func TestIsOPCLinkRelay(t *testing.T) {
 	cases := []struct {
 		name string
 		key  string
@@ -169,8 +169,8 @@ func TestIsNewAPIRelay(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := isNewAPIRelay(tc.key, tc.base); got != tc.want {
-				t.Fatalf("isNewAPIRelay(%q,%q) = %v, want %v", tc.key, tc.base, got, tc.want)
+			if got := isOPCLinkRelay(tc.key, tc.base); got != tc.want {
+				t.Fatalf("isOPCLinkRelay(%q,%q) = %v, want %v", tc.key, tc.base, got, tc.want)
 			}
 		})
 	}

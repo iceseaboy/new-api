@@ -9,19 +9,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/model"
 	"github.com/gin-gonic/gin"
 
-	"github.com/QuantumNous/new-api/constant"
-	taskdto "github.com/QuantumNous/new-api/dto"
-	"github.com/QuantumNous/new-api/relay/channel"
-	geminitask "github.com/QuantumNous/new-api/relay/channel/task/gemini"
-	taskcommon "github.com/QuantumNous/new-api/relay/channel/task/taskcommon"
-	vertexcore "github.com/QuantumNous/new-api/relay/channel/vertex"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	"github.com/QuantumNous/new-api/relaykit/dto"
-	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/opclink/constant"
+	taskdto "github.com/QuantumNous/opclink/dto"
+	"github.com/QuantumNous/opclink/relay/channel"
+	geminitask "github.com/QuantumNous/opclink/relay/channel/task/gemini"
+	taskcommon "github.com/QuantumNous/opclink/relay/channel/task/taskcommon"
+	vertexcore "github.com/QuantumNous/opclink/relay/channel/vertex"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/opclink/service"
 )
 
 // ============================

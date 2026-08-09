@@ -3,12 +3,12 @@ package controller
 import (
 	"strconv"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/constant"
-	"github.com/QuantumNous/new-api/dto"
-	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/relay"
-	"github.com/QuantumNous/new-api/types"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/constant"
+	"github.com/QuantumNous/opclink/dto"
+	"github.com/QuantumNous/opclink/model"
+	"github.com/QuantumNous/opclink/relay"
+	"github.com/QuantumNous/opclink/types"
 
 	"github.com/gin-gonic/gin"
 )

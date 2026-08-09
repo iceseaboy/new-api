@@ -8,14 +8,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/dto"
-	"github.com/QuantumNous/new-api/logger"
-	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/relay/channel"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	"github.com/QuantumNous/new-api/service"
-	"github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/dto"
+	"github.com/QuantumNous/opclink/logger"
+	"github.com/QuantumNous/opclink/model"
+	"github.com/QuantumNous/opclink/relay/channel"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	"github.com/QuantumNous/opclink/service"
+	"github.com/QuantumNous/opclink/relaykit/types"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,7 +26,7 @@ import (
 //   - CreateAssetGroup: 转发上游 → 上游成功后入 DB → 返回响应
 //   - CreateAsset: 先校验 group 归属 → 转发上游 → 上游成功后入 DB → 返回响应
 //   - GetAsset: 先校验 asset 归属 → 透传上游 → 直接返回响应，不写 DB
-func SeedanceAssetHelper(c *gin.Context, info *relaycommon.RelayInfo) *types.NewAPIError {
+func SeedanceAssetHelper(c *gin.Context, info *relaycommon.RelayInfo) *types.OPCLinkError {
 	info.InitChannelMeta(c)
 
 	endpoint := identifySeedanceEndpoint(c.Request.URL.Path)
@@ -230,7 +230,7 @@ func buildSeedanceAssetURL(info *relaycommon.RelayInfo, endpoint string) (string
 // writeSeedanceDownstreamResponse 把上游(zlhub) {ResponseMetadata,Result} 翻译成
 // 下游统一契约 {"state":1,"data":<Result>,"error":null} 返回客户端，
 // 让客户端可按素材管理接口文档(state/data/error)对接，与上游外壳解耦。
-func writeSeedanceDownstreamResponse(c *gin.Context, body []byte) *types.NewAPIError {
+func writeSeedanceDownstreamResponse(c *gin.Context, body []byte) *types.OPCLinkError {
 	var envelope dto.SeedanceAssetEnvelope[any]
 	if common.Unmarshal(body, &envelope) != nil || envelope.Result == nil {
 		logger.LogError(c, fmt.Sprintf("素材响应翻译失败: 无法解析 Result, upstream_body=%s", string(body)))
@@ -247,7 +247,7 @@ func writeSeedanceDownstreamResponse(c *gin.Context, body []byte) *types.NewAPIE
 
 // ---- Ownership 处理 ----
 
-func handleCreateAssetGroup(c *gin.Context, userId, tokenId, channelId int, respBody []byte) *types.NewAPIError {
+func handleCreateAssetGroup(c *gin.Context, userId, tokenId, channelId int, respBody []byte) *types.OPCLinkError {
 	var outer dto.SeedanceAssetEnvelope[dto.SeedanceCreateAssetGroupResult]
 	if common.Unmarshal(respBody, &outer) != nil || outer.Result.Id == "" {
 		logger.LogError(c, fmt.Sprintf("CreateAssetGroup: 无法从上游响应解析 Id, upstream_body=%s", string(respBody)))
@@ -276,7 +276,7 @@ func handleCreateAssetGroup(c *gin.Context, userId, tokenId, channelId int, resp
 	return nil
 }
 
-func handleCreateAsset(c *gin.Context, userId, tokenId, channelId int, respBody []byte, groupId, assetType string) *types.NewAPIError {
+func handleCreateAsset(c *gin.Context, userId, tokenId, channelId int, respBody []byte, groupId, assetType string) *types.OPCLinkError {
 	var outer dto.SeedanceAssetEnvelope[dto.SeedanceCreateAssetResult]
 	if common.Unmarshal(respBody, &outer) != nil || outer.Result.Id == "" {
 		logger.LogError(c, fmt.Sprintf("CreateAsset: 无法从上游响应解析 Id, upstream_body=%s", string(respBody)))

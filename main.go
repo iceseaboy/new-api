@@ -15,22 +15,22 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/constant"
-	"github.com/QuantumNous/new-api/controller"
-	"github.com/QuantumNous/new-api/i18n"
-	"github.com/QuantumNous/new-api/logger"
-	"github.com/QuantumNous/new-api/middleware"
-	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/oauth"
-	perfmetrics "github.com/QuantumNous/new-api/pkg/perf_metrics"
-	"github.com/QuantumNous/new-api/relay"
-	kitutil "github.com/QuantumNous/new-api/relaykit/relayconvert/kitutil"
-	"github.com/QuantumNous/new-api/router"
-	"github.com/QuantumNous/new-api/service"
-	"github.com/QuantumNous/new-api/service/authz"
-	_ "github.com/QuantumNous/new-api/setting/performance_setting"
-	"github.com/QuantumNous/new-api/setting/ratio_setting"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/constant"
+	"github.com/QuantumNous/opclink/controller"
+	"github.com/QuantumNous/opclink/i18n"
+	"github.com/QuantumNous/opclink/logger"
+	"github.com/QuantumNous/opclink/middleware"
+	"github.com/QuantumNous/opclink/model"
+	"github.com/QuantumNous/opclink/oauth"
+	perfmetrics "github.com/QuantumNous/opclink/pkg/perf_metrics"
+	"github.com/QuantumNous/opclink/relay"
+	kitutil "github.com/QuantumNous/opclink/relaykit/relayconvert/kitutil"
+	"github.com/QuantumNous/opclink/router"
+	"github.com/QuantumNous/opclink/service"
+	"github.com/QuantumNous/opclink/service/authz"
+	_ "github.com/QuantumNous/opclink/setting/performance_setting"
+	"github.com/QuantumNous/opclink/setting/ratio_setting"
 
 	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/gin-gonic/gin"
@@ -58,7 +58,7 @@ func main() {
 		return
 	}
 
-	common.SysLog("New API " + common.Version + " started")
+	common.SysLog("OPCLink " + common.Version + " started")
 	if os.Getenv("GIN_MODE") != "debug" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -180,8 +180,8 @@ func main() {
 		common.SysLog(fmt.Sprintf("panic detected: %v", err))
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": gin.H{
-				"message": fmt.Sprintf("Panic detected, error: %v. Please submit a issue here: https://github.com/Calcium-Ion/new-api", err),
-				"type":    "new_api_panic",
+				"message": fmt.Sprintf("Panic detected, error: %v. Please submit a issue here: https://github.com/Calcium-Ion/opclink", err),
+				"type":    "opclink_panic",
 			},
 		})
 	}))

@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/constant"
-	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/relay/channel/codex"
-	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/constant"
+	"github.com/QuantumNous/opclink/model"
+	"github.com/QuantumNous/opclink/relay/channel/codex"
+	"github.com/QuantumNous/opclink/service"
 
 	"github.com/gin-gonic/gin"
 )

@@ -6,24 +6,24 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/constant"
-	"github.com/QuantumNous/new-api/logger"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	"github.com/QuantumNous/new-api/relay/helper"
-	"github.com/QuantumNous/new-api/relaykit/dto"
-	"github.com/QuantumNous/new-api/relaykit/types"
-	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/constant"
+	"github.com/QuantumNous/opclink/logger"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	"github.com/QuantumNous/opclink/relay/helper"
+	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/opclink/relaykit/types"
+	"github.com/QuantumNous/opclink/service"
 
 	"github.com/gin-gonic/gin"
 )
 
-func AlphaSearchHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *types.NewAPIError) {
+func AlphaSearchHelper(c *gin.Context, info *relaycommon.RelayInfo) (opclinkError *types.OPCLinkError) {
 	info.InitChannelMeta(c)
 
 	switch info.ChannelType {
 	case constant.ChannelTypeSub2API,
-		constant.ChannelTypeNewAPI,
+		constant.ChannelTypeOPCLink,
 		constant.ChannelTypeCodex,
 		constant.ChannelTypeAdvancedCustom:
 	default:
@@ -57,7 +57,7 @@ func AlphaSearchHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError
 	if len(info.ParamOverride) > 0 {
 		jsonData, err = relaycommon.ApplyParamOverrideWithRelayInfo(jsonData, info)
 		if err != nil {
-			return newAPIErrorFromParamOverride(err)
+			return opclinkErrorFromParamOverride(err)
 		}
 	}
 
@@ -87,9 +87,9 @@ func AlphaSearchHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError
 	defer httpResp.Body.Close()
 
 	if httpResp.StatusCode < 200 || httpResp.StatusCode >= 300 {
-		newAPIError = service.RelayErrorHandler(c.Request.Context(), httpResp, false)
-		service.ResetStatusCode(newAPIError, statusCodeMappingStr)
-		return newAPIError
+		opclinkError = service.RelayErrorHandler(c.Request.Context(), httpResp, false)
+		service.ResetStatusCode(opclinkError, statusCodeMappingStr)
+		return opclinkError
 	}
 
 	if contentType := httpResp.Header.Get("Content-Type"); contentType != "" {

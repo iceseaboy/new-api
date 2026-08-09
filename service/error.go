@@ -11,11 +11,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/QuantumNous/new-api/common"
-	taskdto "github.com/QuantumNous/new-api/dto"
-	"github.com/QuantumNous/new-api/logger"
-	"github.com/QuantumNous/new-api/relaykit/dto"
-	"github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/QuantumNous/opclink/common"
+	taskdto "github.com/QuantumNous/opclink/dto"
+	"github.com/QuantumNous/opclink/logger"
+	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/opclink/relaykit/types"
 )
 
 func MidjourneyErrorWrapper(code int, desc string) *taskdto.MidjourneyResponse {
@@ -44,7 +44,7 @@ func MidjourneyErrorWithStatusCodeWrapper(code int, desc string, statusCode int)
 //	}
 //	openAIError := dto.OpenAIError{
 //		Message: text,
-//		Type:    "new_api_error",
+//		Type:    "opclink_error",
 //		Code:    code,
 //	}
 //	return &dto.OpenAIErrorWithStatusCode{
@@ -70,7 +70,7 @@ func ClaudeErrorWrapper(err error, code string, statusCode int) *dto.ClaudeError
 	}
 	claudeError := types.ClaudeError{
 		Message: text,
-		Type:    "new_api_error",
+		Type:    "opclink_error",
 	}
 	return &dto.ClaudeErrorWithStatusCode{
 		Error:      claudeError,
@@ -84,8 +84,8 @@ func ClaudeErrorWrapperLocal(err error, code string, statusCode int) *dto.Claude
 	return claudeErr
 }
 
-func RelayErrorHandler(ctx context.Context, resp *http.Response, showBodyWhenFail bool) (newApiErr *types.NewAPIError) {
-	newApiErr = types.InitOpenAIError(types.ErrorCodeBadResponseStatusCode, resp.StatusCode)
+func RelayErrorHandler(ctx context.Context, resp *http.Response, showBodyWhenFail bool) (opclinkErr *types.OPCLinkError) {
+	opclinkErr = types.InitOpenAIError(types.ErrorCodeBadResponseStatusCode, resp.StatusCode)
 
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -105,10 +105,10 @@ func RelayErrorHandler(ctx context.Context, resp *http.Response, showBodyWhenFai
 	err = common.Unmarshal(responseBody, &errResponse)
 	if err != nil {
 		if showBodyWhenFail {
-			newApiErr.Err = buildErrWithBody("")
+			opclinkErr.Err = buildErrWithBody("")
 		} else {
 			logger.LogError(ctx, fmt.Sprintf("bad response status code %d, body: %s", resp.StatusCode, responseBodyPreview))
-			newApiErr.Err = fmt.Errorf("bad response status code %d", resp.StatusCode)
+			opclinkErr.Err = fmt.Errorf("bad response status code %d", resp.StatusCode)
 		}
 		return
 	}
@@ -117,9 +117,9 @@ func RelayErrorHandler(ctx context.Context, resp *http.Response, showBodyWhenFai
 		// General format error (OpenAI, Anthropic, Gemini, etc.)
 		oaiError := errResponse.TryToOpenAIError()
 		if oaiError != nil {
-			newApiErr = types.WithOpenAIError(*oaiError, resp.StatusCode)
+			opclinkErr = types.WithOpenAIError(*oaiError, resp.StatusCode)
 			if showBodyWhenFail {
-				newApiErr.Err = buildErrWithBody(newApiErr.Error())
+				opclinkErr.Err = buildErrWithBody(opclinkErr.Error())
 			}
 			return
 		}
@@ -130,15 +130,15 @@ func RelayErrorHandler(ctx context.Context, resp *http.Response, showBodyWhenFai
 		// raw body so the upstream failure remains diagnosable.
 		logger.LogError(ctx, fmt.Sprintf("bad response status code %d with empty error message, body: %s", resp.StatusCode, responseBodyPreview))
 	}
-	newApiErr = types.NewOpenAIError(errors.New(message), types.ErrorCodeBadResponseStatusCode, resp.StatusCode)
+	opclinkErr = types.NewOpenAIError(errors.New(message), types.ErrorCodeBadResponseStatusCode, resp.StatusCode)
 	if showBodyWhenFail {
-		newApiErr.Err = buildErrWithBody(newApiErr.Error())
+		opclinkErr.Err = buildErrWithBody(opclinkErr.Error())
 	}
 	return
 }
 
-func ResetStatusCode(newApiErr *types.NewAPIError, statusCodeMappingStr string) {
-	if newApiErr == nil {
+func ResetStatusCode(opclinkErr *types.OPCLinkError, statusCodeMappingStr string) {
+	if opclinkErr == nil {
 		return
 	}
 	if statusCodeMappingStr == "" || statusCodeMappingStr == "{}" {
@@ -149,16 +149,16 @@ func ResetStatusCode(newApiErr *types.NewAPIError, statusCodeMappingStr string) 
 	if err != nil {
 		return
 	}
-	if newApiErr.StatusCode == http.StatusOK {
+	if opclinkErr.StatusCode == http.StatusOK {
 		return
 	}
-	codeStr := strconv.Itoa(newApiErr.StatusCode)
+	codeStr := strconv.Itoa(opclinkErr.StatusCode)
 	if value, ok := statusCodeMapping[codeStr]; ok {
 		intCode, ok := parseStatusCodeMappingValue(value)
 		if !ok {
 			return
 		}
-		newApiErr.StatusCode = intCode
+		opclinkErr.StatusCode = intCode
 	}
 }
 
@@ -216,8 +216,8 @@ func TaskErrorWrapper(err error, code string, statusCode int) *taskdto.TaskError
 	return taskError
 }
 
-// TaskErrorFromAPIError 将 PreConsumeBilling 返回的 NewAPIError 转换为 TaskError。
-func TaskErrorFromAPIError(apiErr *types.NewAPIError) *taskdto.TaskError {
+// TaskErrorFromAPIError 将 PreConsumeBilling 返回的 OPCLinkError 转换为 TaskError。
+func TaskErrorFromAPIError(apiErr *types.OPCLinkError) *taskdto.TaskError {
 	if apiErr == nil {
 		return nil
 	}

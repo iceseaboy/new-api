@@ -3,10 +3,10 @@ package controller
 import (
 	"time"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/constant"
-	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/constant"
+	"github.com/QuantumNous/opclink/model"
+	"github.com/QuantumNous/opclink/setting/operation_setting"
 	"github.com/gin-gonic/gin"
 )
 

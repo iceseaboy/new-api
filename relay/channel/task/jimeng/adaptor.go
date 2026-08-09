@@ -14,20 +14,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/model"
 	"github.com/samber/lo"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 
-	"github.com/QuantumNous/new-api/constant"
-	taskdto "github.com/QuantumNous/new-api/dto"
-	"github.com/QuantumNous/new-api/relay/channel"
-	taskcommon "github.com/QuantumNous/new-api/relay/channel/task/taskcommon"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	"github.com/QuantumNous/new-api/relaykit/dto"
-	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/opclink/constant"
+	taskdto "github.com/QuantumNous/opclink/dto"
+	"github.com/QuantumNous/opclink/relay/channel"
+	taskcommon "github.com/QuantumNous/opclink/relay/channel/task/taskcommon"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/opclink/service"
 )
 
 // ============================
@@ -104,7 +104,7 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 
 // BuildRequestURL constructs the upstream URL.
 func (a *TaskAdaptor) BuildRequestURL(info *relaycommon.RelayInfo) (string, error) {
-	if isNewAPIRelay(info.ApiKey, a.baseURL) {
+	if isOPCLinkRelay(info.ApiKey, a.baseURL) {
 		return fmt.Sprintf("%s/jimeng/?Action=CVSync2AsyncSubmitTask&Version=2022-08-31", a.baseURL), nil
 	}
 	return fmt.Sprintf("%s/?Action=CVSync2AsyncSubmitTask&Version=2022-08-31", a.baseURL), nil
@@ -114,7 +114,7 @@ func (a *TaskAdaptor) BuildRequestURL(info *relaycommon.RelayInfo) (string, erro
 func (a *TaskAdaptor) BuildRequestHeader(c *gin.Context, req *http.Request, info *relaycommon.RelayInfo) error {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	if isNewAPIRelay(info.ApiKey, a.baseURL) {
+	if isOPCLinkRelay(info.ApiKey, a.baseURL) {
 		req.Header.Set("Authorization", "Bearer "+info.ApiKey)
 	} else {
 		return a.signRequest(req, a.accessKey, a.secretKey)
@@ -220,7 +220,7 @@ func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy 
 	}
 
 	uri := fmt.Sprintf("%s/?Action=CVSync2AsyncGetResult&Version=2022-08-31", baseUrl)
-	if isNewAPIRelay(key, baseUrl) {
+	if isOPCLinkRelay(key, baseUrl) {
 		uri = fmt.Sprintf("%s/jimeng/?Action=CVSync2AsyncGetResult&Version=2022-08-31", a.baseURL)
 	}
 	payload := map[string]string{
@@ -240,7 +240,7 @@ func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy 
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
 
-	if isNewAPIRelay(key, baseUrl) {
+	if isOPCLinkRelay(key, baseUrl) {
 		req.Header.Set("Authorization", "Bearer "+key)
 	} else {
 		keyParts := strings.Split(key, "|")
@@ -476,9 +476,9 @@ func (a *TaskAdaptor) ConvertToOpenAIVideo(originTask *model.Task) ([]byte, erro
 	return common.Marshal(openAIVideo)
 }
 
-// isNewAPIRelay 判断上游是否为 new-api 网关：密钥为 sk- 前缀且 base_url 不带路径前缀。
+// isOPCLinkRelay 判断上游是否为 opclink 网关：密钥为 sk- 前缀且 base_url 不带路径前缀。
 // 仅凭密钥不够——部分聚合上游用 sk- 密钥但在自定义路径前缀下暴露原生协议。
-func isNewAPIRelay(apiKey, baseURL string) bool {
+func isOPCLinkRelay(apiKey, baseURL string) bool {
 	return strings.HasPrefix(apiKey, "sk-") && !hasCustomPathPrefix(baseURL)
 }
 

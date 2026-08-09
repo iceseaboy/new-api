@@ -3,10 +3,10 @@ package service
 import (
 	"net/http"
 
-	"github.com/QuantumNous/new-api/pkg/billingexpr"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	"github.com/QuantumNous/new-api/relaykit/dto"
-	"github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/QuantumNous/opclink/pkg/billingexpr"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/opclink/relaykit/types"
 	"github.com/gin-gonic/gin"
 )
 
@@ -122,7 +122,7 @@ func refreshTieredBillingGroup(relayInfo *relaycommon.RelayInfo) (*billingexpr.B
 // state before an upstream attempt. An existing session reserves any higher
 // estimate before sending. If the initial group was free and skipped
 // pre-consume, switching to a paid group creates the session at that point.
-func PrepareTieredBillingForSelectedGroup(c *gin.Context, relayInfo *relaycommon.RelayInfo) *types.NewAPIError {
+func PrepareTieredBillingForSelectedGroup(c *gin.Context, relayInfo *relaycommon.RelayInfo) *types.OPCLinkError {
 	snap, err := refreshTieredBillingGroup(relayInfo)
 	if err != nil {
 		return types.NewErrorWithStatusCode(

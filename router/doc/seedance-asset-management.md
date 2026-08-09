@@ -40,7 +40,7 @@ Content-Type: application/json
 {
   "error": {
     "message": "素材组不属于当前用户",
-    "type": "new_api_error",
+    "type": "opclink_error",
     "code": "access_denied"
   }
 }
@@ -131,7 +131,7 @@ curl -X POST "$BASE_URL/v1/seedance/asset/CreateAsset" \
 `GroupId` 不属于当前账号时返回 HTTP 403：
 
 ```json
-{ "error": { "message": "素材组不属于当前用户", "type": "new_api_error", "code": "access_denied" } }
+{ "error": { "message": "素材组不属于当前用户", "type": "opclink_error", "code": "access_denied" } }
 ```
 
 ---

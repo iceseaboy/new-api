@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/QuantumNous/new-api/common"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	"github.com/QuantumNous/new-api/relaykit/dto"
-	relaytypes "github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/QuantumNous/opclink/common"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	"github.com/QuantumNous/opclink/relaykit/dto"
+	relaytypes "github.com/QuantumNous/opclink/relaykit/types"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream"
 	"github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream/eventstreamapi"
@@ -261,7 +261,7 @@ func TestAwsHandlersCancelSdkRequestAndSkipRetry(t *testing.T) {
 	tests := []struct {
 		name    string
 		request any
-		handle  func(*gin.Context, *relaycommon.RelayInfo, *Adaptor) (*relaytypes.NewAPIError, *dto.Usage)
+		handle  func(*gin.Context, *relaycommon.RelayInfo, *Adaptor) (*relaytypes.OPCLinkError, *dto.Usage)
 	}{
 		{name: "non-stream", request: newAwsInvokeModelInput(), handle: awsHandler},
 		{name: "stream", request: newAwsStreamInput(), handle: awsStreamHandler},
@@ -284,7 +284,7 @@ func TestAwsHandlersCancelSdkRequestAndSkipRetry(t *testing.T) {
 			info := newAwsTestRelayInfo()
 
 			type handlerResult struct {
-				err   *relaytypes.NewAPIError
+				err   *relaytypes.OPCLinkError
 				usage *dto.Usage
 			}
 			results := make(chan handlerResult, 1)
@@ -405,7 +405,7 @@ func TestAwsStreamHandlerStopsAtClientCancellationAndKeepsPartialBillingUsage(t 
 	adaptor := &Adaptor{AwsClient: client, AwsReq: newAwsStreamInput()}
 
 	type handlerResult struct {
-		err   *relaytypes.NewAPIError
+		err   *relaytypes.OPCLinkError
 		usage *dto.Usage
 	}
 	results := make(chan handlerResult, 1)

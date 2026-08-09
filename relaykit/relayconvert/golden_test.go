@@ -17,9 +17,9 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/QuantumNous/new-api/relaykit/dto"
-	"github.com/QuantumNous/new-api/relaykit/relayconvert/convmeta"
-	"github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/opclink/relaykit/relayconvert/convmeta"
+	"github.com/QuantumNous/opclink/relaykit/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -73,7 +73,7 @@ func checkGolden(t *testing.T, name string, got []byte) {
 	require.Equal(t, string(want), string(got), "conversion output drifted from golden snapshot %s", path)
 }
 
-// goldenInfo mirrors the host's default converter options (new-api's
+// goldenInfo mirrors the host's default converter options (opclink's
 // model_setting defaults at the time the snapshots were recorded) so the
 // golden files stay comparable across the extraction.
 func goldenInfo() convmeta.Meta {

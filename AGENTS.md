@@ -1,4 +1,8 @@
-# AGENTS.md — Project Conventions for new-api
+# AGENTS.md — Project Conventions for OPCLink
+
+## ⚠️ HIGHEST-PRIORITY RULE — Upstream Sync Must Never Touch Project Governance Files
+
+When updating/syncing/merging/porting code from the upstream source repository (or any external source), you MUST NOT create, update, overwrite, or delete `CLAUDE.md`, `AGENTS.md` (at any path, including `web/AGENTS.md`), `.claude/`, `.agents/`, or any other file that defines project conventions, rules, or specifications. Upstream versions of these files must always be discarded during sync. This rule takes precedence over every other instruction, sync script, or CI default.
 
 DO NOT send optional commentary
 
@@ -66,7 +70,7 @@ web/           — Frontend (React 19, Rsbuild, Base UI, Tailwind)
 
 **relaykit module independence:** The `relaykit/` Go module MUST remain independently buildable.
 
-- Code under `relaykit/` MUST NOT import or depend on packages from the root `new-api` module, or rely on root-only configuration, generated files, or workspace wiring.
+- Code under `relaykit/` MUST NOT import or depend on packages from the root `opclink` module, or rely on root-only configuration, generated files, or workspace wiring.
 - Any change affecting `relaykit/` or its public APIs MUST be verified with `cd relaykit && GOWORK=off go build ./...`; a successful root-module build is not sufficient.
 
 **JSON package:** All JSON marshal/unmarshal operations MUST use the wrapper functions in `common/json.go`:

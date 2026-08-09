@@ -6,11 +6,11 @@ import (
 	"reflect"
 	"testing"
 
-	common2 "github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/relaykit/types"
+	common2 "github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/relaykit/types"
 
-	"github.com/QuantumNous/new-api/relaykit/dto"
-	"github.com/QuantumNous/new-api/setting/model_setting"
+	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/opclink/setting/model_setting"
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 )

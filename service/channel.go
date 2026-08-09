@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/relaykit/dto"
-	"github.com/QuantumNous/new-api/relaykit/types"
-	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/model"
+	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/opclink/relaykit/types"
+	"github.com/QuantumNous/opclink/setting/operation_setting"
 )
 
 func formatNotifyType(channelId int, status int) string {
@@ -42,7 +42,7 @@ func EnableChannel(channelId int, usingKey string, channelName string) {
 	}
 }
 
-func ShouldDisableChannel(err *types.NewAPIError) bool {
+func ShouldDisableChannel(err *types.OPCLinkError) bool {
 	if !common.AutomaticDisableChannelEnabled {
 		return false
 	}
@@ -64,11 +64,11 @@ func ShouldDisableChannel(err *types.NewAPIError) bool {
 	return search
 }
 
-func ShouldEnableChannel(newAPIError *types.NewAPIError, status int) bool {
+func ShouldEnableChannel(opclinkError *types.OPCLinkError, status int) bool {
 	if !common.AutomaticEnableChannelEnabled {
 		return false
 	}
-	if newAPIError != nil {
+	if opclinkError != nil {
 		return false
 	}
 	if status != common.ChannelStatusAutoDisabled {

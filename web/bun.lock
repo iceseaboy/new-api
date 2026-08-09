@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "newapi-web",
+      "name": "opclink-web",
       "dependencies": {
         "@base-ui/react": "^1.6.0",
         "@codemirror/lang-markdown": "^6.5.0",

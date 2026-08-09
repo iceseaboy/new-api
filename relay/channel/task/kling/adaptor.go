@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/model"
 
 	"github.com/samber/lo"
 
@@ -21,13 +21,13 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/pkg/errors"
 
-	"github.com/QuantumNous/new-api/constant"
-	taskdto "github.com/QuantumNous/new-api/dto"
-	"github.com/QuantumNous/new-api/relay/channel"
-	taskcommon "github.com/QuantumNous/new-api/relay/channel/task/taskcommon"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	"github.com/QuantumNous/new-api/relaykit/dto"
-	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/opclink/constant"
+	taskdto "github.com/QuantumNous/opclink/dto"
+	"github.com/QuantumNous/opclink/relay/channel"
+	taskcommon "github.com/QuantumNous/opclink/relay/channel/task/taskcommon"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/opclink/service"
 )
 
 // ============================
@@ -139,7 +139,7 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 func (a *TaskAdaptor) BuildRequestURL(info *relaycommon.RelayInfo) (string, error) {
 	path := lo.Ternary(info.Action == constant.TaskActionGenerate, "/v1/videos/image2video", "/v1/videos/text2video")
 
-	if isNewAPIRelay(info.ApiKey) && !hasCustomPathPrefix(a.baseURL) {
+	if isOPCLinkRelay(info.ApiKey) && !hasCustomPathPrefix(a.baseURL) {
 		return fmt.Sprintf("%s/kling%s", a.baseURL, path), nil
 	}
 
@@ -233,7 +233,7 @@ func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *rela
 		return
 	}
 	if kResp.Data.TaskId == "" {
-		// new-api 中继上游的提交响应是 OpenAIVideo 格式：{"task_id":"task_...","id":"task_...", ...}
+		// opclink 中继上游的提交响应是 OpenAIVideo 格式：{"task_id":"task_...","id":"task_...", ...}
 		var relaySubmit struct {
 			TaskID string `json:"task_id"`
 			ID     string `json:"id"`
@@ -279,7 +279,7 @@ func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy 
 	}
 	path := lo.Ternary(action == constant.TaskActionGenerate, "/v1/videos/image2video", "/v1/videos/text2video")
 	url := fmt.Sprintf("%s%s/%s", baseUrl, path, taskID)
-	if isNewAPIRelay(key) && !hasCustomPathPrefix(baseUrl) {
+	if isOPCLinkRelay(key) && !hasCustomPathPrefix(baseUrl) {
 		url = fmt.Sprintf("%s/kling%s/%s", baseUrl, path, taskID)
 	}
 
@@ -365,8 +365,8 @@ func (a *TaskAdaptor) createJWTToken() (string, error) {
 }
 
 func (a *TaskAdaptor) createJWTTokenWithKey(apiKey string) (string, error) {
-	if isNewAPIRelay(apiKey) {
-		return apiKey, nil // new api relay
+	if isOPCLinkRelay(apiKey) {
+		return apiKey, nil // opclink relay
 	}
 	keyParts := strings.Split(apiKey, "|")
 	if len(keyParts) != 2 {
@@ -393,8 +393,8 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 	resPayload := responsePayload{}
 	err := common.Unmarshal(respBody, &resPayload)
 	if err != nil {
-		// new-api 中继上游的查询响应是 TaskDto 信封（code 为字符串），回退解析
-		if relayInfo, relayErr := parseNewAPIRelayTaskResult(respBody); relayErr == nil {
+		// opclink 中继上游的查询响应是 TaskDto 信封（code 为字符串），回退解析
+		if relayInfo, relayErr := parseOPCLinkRelayTaskResult(respBody); relayErr == nil {
 			return relayInfo, nil
 		}
 		return nil, errors.Wrap(err, "failed to unmarshal response body")
@@ -431,14 +431,14 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 	return taskInfo, nil
 }
 
-func isNewAPIRelay(apiKey string) bool {
+func isOPCLinkRelay(apiKey string) bool {
 	return strings.HasPrefix(apiKey, "sk-")
 }
 
-// parseNewAPIRelayTaskResult 解析 new-api 中继上游的任务查询响应（TaskDto 信封）：
+// parseOPCLinkRelayTaskResult 解析 opclink 中继上游的任务查询响应（TaskDto 信封）：
 // {"code":"success","data":{"status":"SUCCESS","progress":"100%","fail_reason":"","data":{...kling 原生响应...}}}
 // 状态取外层 TaskDto.status；视频 URL 从内层 kling 原生数据提取。
-func parseNewAPIRelayTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) {
+func parseOPCLinkRelayTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) {
 	var relayResp struct {
 		Data struct {
 			Status     string          `json:"status"`
@@ -468,7 +468,7 @@ func parseNewAPIRelayTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) 
 	return taskInfo, nil
 }
 
-// extractRelayVideoURL 逐层拆开中继信封（可能多级 new-api 串联，每级包一层 data），
+// extractRelayVideoURL 逐层拆开中继信封（可能多级 opclink 串联，每级包一层 data），
 // 直到最内层 kling 原生数据中的 task_result.videos[0].url。
 func extractRelayVideoURL(raw json.RawMessage) string {
 	for depth := 0; depth < 6 && len(raw) > 0; depth++ {
@@ -492,7 +492,7 @@ func extractRelayVideoURL(raw json.RawMessage) string {
 }
 
 // hasCustomPathPrefix 判断渠道 base_url 是否带路径前缀（如 https://api.sinmo.top/openapi）。
-// 此类上游在该前缀下直接暴露 kling 原生路径，不能再插入 new-api 中继的 /kling 段。
+// 此类上游在该前缀下直接暴露 kling 原生路径，不能再插入 opclink 中继的 /kling 段。
 func hasCustomPathPrefix(baseURL string) bool {
 	u, err := url.Parse(baseURL)
 	if err != nil {

@@ -6,10 +6,10 @@ import (
 	"io"
 	"net/http"
 
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	"github.com/QuantumNous/new-api/relaykit/dto"
-	"github.com/QuantumNous/new-api/relaykit/types"
-	"github.com/QuantumNous/new-api/service"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/opclink/relaykit/types"
+	"github.com/QuantumNous/opclink/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -49,7 +49,7 @@ func responseJimeng2OpenAIImage(_ *gin.Context, response *ImageResponse, info *r
 }
 
 // jimengImageHandler handles the Jimeng image generation response
-func jimengImageHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.Usage, *types.NewAPIError) {
+func jimengImageHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.Usage, *types.OPCLinkError) {
 	var jimengResponse ImageResponse
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {

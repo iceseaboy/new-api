@@ -3,10 +3,10 @@ package middleware
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/constant"
-	"github.com/QuantumNous/new-api/i18n"
-	"github.com/QuantumNous/new-api/relaykit/dto"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/constant"
+	"github.com/QuantumNous/opclink/i18n"
+	"github.com/QuantumNous/opclink/relaykit/dto"
 )
 
 // I18n middleware detects and sets the language preference for the request

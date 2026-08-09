@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/controller"
-	"github.com/QuantumNous/new-api/middleware"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/controller"
+	"github.com/QuantumNous/opclink/middleware"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"

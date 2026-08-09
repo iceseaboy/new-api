@@ -29,9 +29,13 @@ import * as LobeIcons from '@lobehub/icons'
 import type React from 'react'
 
 import { IconSub2api } from '@/assets/custom/icon-sub2api'
+import { Logo } from '@/assets/logo'
 
 const CUSTOM_ICONS: Record<string, React.ComponentType<{ size?: number }>> = {
   Sub2API: IconSub2api,
+  OPCLink: ({ size = 20 }) => (
+    <Logo style={{ width: size, height: size }} />
+  ),
 }
 
 /**

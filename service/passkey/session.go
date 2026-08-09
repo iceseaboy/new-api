@@ -4,8 +4,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/model"
 
 	webauthn "github.com/go-webauthn/webauthn/webauthn"
 )

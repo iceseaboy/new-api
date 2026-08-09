@@ -11,16 +11,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/opclink/common"
 
-	"github.com/QuantumNous/new-api/constant"
-	taskdto "github.com/QuantumNous/new-api/dto"
-	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/relay/channel"
-	"github.com/QuantumNous/new-api/relay/channel/task/taskcommon"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	"github.com/QuantumNous/new-api/relaykit/dto"
-	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/opclink/constant"
+	taskdto "github.com/QuantumNous/opclink/dto"
+	"github.com/QuantumNous/opclink/model"
+	"github.com/QuantumNous/opclink/relay/channel"
+	"github.com/QuantumNous/opclink/relay/channel/task/taskcommon"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/opclink/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -189,16 +189,16 @@ func inferActionFromRequest(req *relaycommon.TaskSubmitReq) string {
 
 // BuildRequestURL constructs the upstream URL.
 func (a *TaskAdaptor) BuildRequestURL(_ *relaycommon.RelayInfo) (string, error) {
-	if isNewAPIRelay(a.apiKey, a.baseURL) {
+	if isOPCLinkRelay(a.apiKey, a.baseURL) {
 		return fmt.Sprintf("%s/v1/video/generations", a.baseURL), nil
 	}
 	return fmt.Sprintf("%s/api/v3/contents/generations/tasks", a.baseURL), nil
 }
 
-// isNewAPIRelay 判断上游是否为 new-api 网关：密钥为 sk- 前缀且 base_url 不带路径前缀。
+// isOPCLinkRelay 判断上游是否为 opclink 网关：密钥为 sk- 前缀且 base_url 不带路径前缀。
 // 仅凭密钥不够——zlhub 等聚合上游用 sk- 密钥但走火山原生协议（base_url 带 /origin 类路径前缀）；
 // 火山官方密钥为 UUID 格式，不带 sk- 前缀。
-func isNewAPIRelay(apiKey, baseURL string) bool {
+func isOPCLinkRelay(apiKey, baseURL string) bool {
 	return strings.HasPrefix(apiKey, "sk-") && !hasCustomPathPrefix(baseURL)
 }
 
@@ -324,9 +324,9 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 		return nil, err
 	}
 
-	// new-api 中继上游：两边提交格式同为 TaskSubmitReq，直接透传（仅替换映射后的模型名），
+	// opclink 中继上游：两边提交格式同为 TaskSubmitReq，直接透传（仅替换映射后的模型名），
 	// 顶层 content[] 归一化进 metadata.content 以兼容不支持顶层写法的下游版本。
-	if isNewAPIRelay(a.apiKey, a.baseURL) {
+	if isOPCLinkRelay(a.apiKey, a.baseURL) {
 		relayReq := req
 		relayReq.NormalizeForCompatibility()
 		relayReq.Content = nil
@@ -380,7 +380,7 @@ func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *rela
 	}
 
 	if dResp.ID == "" {
-		// new-api 中继上游的提交响应是 OpenAIVideo 格式：{"task_id":"task_...","id":"task_...", ...}
+		// opclink 中继上游的提交响应是 OpenAIVideo 格式：{"task_id":"task_...","id":"task_...", ...}
 		var relaySubmit struct {
 			TaskID string `json:"task_id"`
 			ID     string `json:"id"`
@@ -423,7 +423,7 @@ func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy 
 	}
 
 	uri := fmt.Sprintf("%s/api/v3/contents/generations/tasks/%s", baseUrl, taskID)
-	if isNewAPIRelay(key, baseUrl) {
+	if isOPCLinkRelay(key, baseUrl) {
 		uri = fmt.Sprintf("%s/v1/video/generations/%s", baseUrl, taskID)
 	}
 
@@ -488,8 +488,8 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 }
 
 func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) {
-	// 优先尝试 new-api 中继信封（TaskDto 格式）；非中继响应会因状态不合法而回退到火山原生解析
-	if relayResult, err := parseNewAPIRelayTaskResult(respBody); err == nil {
+	// 优先尝试 opclink 中继信封（TaskDto 格式）；非中继响应会因状态不合法而回退到火山原生解析
+	if relayResult, err := parseOPCLinkRelayTaskResult(respBody); err == nil {
 		return relayResult, nil
 	}
 
@@ -532,10 +532,10 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 	return &taskResult, nil
 }
 
-// parseNewAPIRelayTaskResult 解析 new-api 中继上游的任务查询响应（TaskDto 信封）：
+// parseOPCLinkRelayTaskResult 解析 opclink 中继上游的任务查询响应（TaskDto 信封）：
 // {"code":"success","data":{"status":"SUCCESS","progress":"100%","fail_reason":"","data":{...火山原生响应...}}}
 // 状态取外层 TaskDto.status；URL/usage/分辨率从内层火山原生数据提取（用于按实际分辨率结算）。
-func parseNewAPIRelayTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) {
+func parseOPCLinkRelayTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) {
 	var relayResp struct {
 		Data struct {
 			Status     string          `json:"status"`
@@ -570,7 +570,7 @@ func parseNewAPIRelayTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) 
 	return taskInfo, nil
 }
 
-// extractRelayInnerTask 逐层拆开中继信封（可能多级 new-api 串联，每级包一层 data），
+// extractRelayInnerTask 逐层拆开中继信封（可能多级 opclink 串联，每级包一层 data），
 // 直到最内层火山原生任务数据（含 video_url/usage/resolution）。
 func extractRelayInnerTask(raw json.RawMessage) *responseTask {
 	for depth := 0; depth < 6 && len(raw) > 0; depth++ {

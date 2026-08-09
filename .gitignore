@@ -12,7 +12,7 @@ web/dist
 web/node_modules
 .env
 one-api
-new-api
+opclink
 /__debug_bin*
 .DS_Store
 tiktoken_cache

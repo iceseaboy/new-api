@@ -288,7 +288,7 @@ GET {BASE_URL}/v1/video/generations/{task_id}
 }
 ```
 
-失败时 `data.status` 为 `FAILURE`，`data.fail_reason` 给出原因；任务不存在返回 HTTP 404 `{"error":{"code":"NotFound","message":"...","type":"new_api_error"}}`。
+失败时 `data.status` 为 `FAILURE`，`data.fail_reason` 给出原因；任务不存在返回 HTTP 404 `{"error":{"code":"NotFound","message":"...","type":"opclink_error"}}`。
 
 ### 状态字段
 

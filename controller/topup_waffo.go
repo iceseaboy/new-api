@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/logger"
-	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/service"
-	"github.com/QuantumNous/new-api/setting"
-	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/logger"
+	"github.com/QuantumNous/opclink/model"
+	"github.com/QuantumNous/opclink/service"
+	"github.com/QuantumNous/opclink/setting"
+	"github.com/QuantumNous/opclink/setting/operation_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/thanhpk/randstr"
 	waffo "github.com/waffo-com/waffo-go"
@@ -63,7 +63,7 @@ func getWaffoCurrency() string {
 func buildWaffoTopUpGoodsInfo(amount int64) *order.GoodsInfo {
 	appName := strings.TrimSpace(common.SystemName)
 	if appName == "" {
-		appName = "New API"
+		appName = "OPCLink"
 	}
 	return &order.GoodsInfo{
 		GoodsName: fmt.Sprintf("Recharge %d credits", amount),

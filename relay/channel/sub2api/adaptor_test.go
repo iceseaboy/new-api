@@ -3,9 +3,9 @@ package sub2api
 import (
 	"testing"
 
-	"github.com/QuantumNous/new-api/constant"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	relayconstant "github.com/QuantumNous/new-api/relay/constant"
+	"github.com/QuantumNous/opclink/constant"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	relayconstant "github.com/QuantumNous/opclink/relay/constant"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,7 +26,7 @@ func TestGetRequestURLAlphaSearch(t *testing.T) {
 	assert.Equal(t, "https://sub2api.example/v1/alpha/search", url)
 }
 
-func TestAdaptorInheritsNewAPIResponsesCompactSupport(t *testing.T) {
+func TestAdaptorInheritsOPCLinkResponsesCompactSupport(t *testing.T) {
 	adaptor := &Adaptor{}
 	info := &relaycommon.RelayInfo{
 		ChannelMeta: &relaycommon.ChannelMeta{

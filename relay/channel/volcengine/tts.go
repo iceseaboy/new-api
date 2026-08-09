@@ -10,9 +10,9 @@ import (
 	"net/http"
 	"strings"
 
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	"github.com/QuantumNous/new-api/relaykit/dto"
-	"github.com/QuantumNous/new-api/relaykit/types"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/opclink/relaykit/types"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -142,7 +142,7 @@ func getContentTypeByEncoding(encoding string) string {
 	return "application/octet-stream"
 }
 
-func handleTTSResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo, encoding string) (usage any, err *types.NewAPIError) {
+func handleTTSResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo, encoding string) (usage any, err *types.OPCLinkError) {
 	body, readErr := io.ReadAll(resp.Body)
 	if readErr != nil {
 		return nil, types.NewErrorWithStatusCode(
@@ -196,7 +196,7 @@ func generateRequestID() string {
 	return uuid.New().String()
 }
 
-func handleTTSWebSocketResponse(c *gin.Context, requestURL string, volcRequest VolcengineTTSRequest, info *relaycommon.RelayInfo, encoding string) (usage any, err *types.NewAPIError) {
+func handleTTSWebSocketResponse(c *gin.Context, requestURL string, volcRequest VolcengineTTSRequest, info *relaycommon.RelayInfo, encoding string) (usage any, err *types.OPCLinkError) {
 	_, token, parseErr := parseVolcengineAuth(info.ApiKey)
 	if parseErr != nil {
 		return nil, types.NewErrorWithStatusCode(

@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/QuantumNous/new-api/constant"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/opclink/constant"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
 	"github.com/gin-gonic/gin"
 )
 

@@ -9,16 +9,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/constant"
-	"github.com/QuantumNous/new-api/i18n"
-	"github.com/QuantumNous/new-api/model"
-	relaychannel "github.com/QuantumNous/new-api/relay/channel"
-	"github.com/QuantumNous/new-api/relay/channel/ollama"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	"github.com/QuantumNous/new-api/relaykit/dto"
-	"github.com/QuantumNous/new-api/service"
-	"github.com/QuantumNous/new-api/service/authz"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/constant"
+	"github.com/QuantumNous/opclink/i18n"
+	"github.com/QuantumNous/opclink/model"
+	relaychannel "github.com/QuantumNous/opclink/relay/channel"
+	"github.com/QuantumNous/opclink/relay/channel/ollama"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/opclink/service"
+	"github.com/QuantumNous/opclink/service/authz"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -481,8 +481,8 @@ func validateChannel(channel *model.Channel, isAdd bool) error {
 		return fmt.Errorf("渠道额外设置[channel setting] 格式错误：%s", err.Error())
 	}
 
-	if channel.Type == constant.ChannelTypeNewAPI && strings.TrimSpace(channel.GetBaseURL()) == "" {
-		return fmt.Errorf("New API channel base URL cannot be empty")
+	if channel.Type == constant.ChannelTypeOPCLink && strings.TrimSpace(channel.GetBaseURL()) == "" {
+		return fmt.Errorf("OPCLink channel base URL cannot be empty")
 	}
 
 	// 如果是添加操作，检查 channel 和 key 是否为空

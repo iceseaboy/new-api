@@ -3,10 +3,10 @@ package tencent
 import (
 	"strings"
 
-	"github.com/QuantumNous/new-api/constant"
-	"github.com/QuantumNous/new-api/relay/channel"
-	"github.com/QuantumNous/new-api/relay/channel/openai"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/opclink/constant"
+	"github.com/QuantumNous/opclink/relay/channel"
+	"github.com/QuantumNous/opclink/relay/channel/openai"
+	relaycommon "github.com/QuantumNous/opclink/relay/common"
 )
 
 const tokenHubBaseURL = "https://tokenhub.tencentmaas.com"

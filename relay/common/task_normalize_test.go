@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/opclink/common"
 )
 
 func TestNormalizeForCompatibility_TopLevelContent(t *testing.T) {

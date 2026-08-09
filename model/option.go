@@ -5,13 +5,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/setting"
-	"github.com/QuantumNous/new-api/setting/config"
-	"github.com/QuantumNous/new-api/setting/operation_setting"
-	"github.com/QuantumNous/new-api/setting/performance_setting"
-	"github.com/QuantumNous/new-api/setting/ratio_setting"
-	"github.com/QuantumNous/new-api/setting/system_setting"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/setting"
+	"github.com/QuantumNous/opclink/setting/config"
+	"github.com/QuantumNous/opclink/setting/operation_setting"
+	"github.com/QuantumNous/opclink/setting/performance_setting"
+	"github.com/QuantumNous/opclink/setting/ratio_setting"
+	"github.com/QuantumNous/opclink/setting/system_setting"
 	"gorm.io/gorm"
 )
 

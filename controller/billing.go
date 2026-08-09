@@ -1,10 +1,10 @@
 package controller
 
 import (
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/relaykit/types"
-	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/model"
+	"github.com/QuantumNous/opclink/relaykit/types"
+	"github.com/QuantumNous/opclink/setting/operation_setting"
 	"github.com/gin-gonic/gin"
 )
 
@@ -83,7 +83,7 @@ func GetUsage(c *gin.Context) {
 	if err != nil {
 		openAIError := types.OpenAIError{
 			Message: err.Error(),
-			Type:    "new_api_error",
+			Type:    "opclink_error",
 		}
 		c.JSON(200, gin.H{
 			"error": openAIError,

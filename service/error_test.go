@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/relaykit/types"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
@@ -55,11 +55,11 @@ func TestResetStatusCode(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			newAPIError := &types.NewAPIError{
+			opclinkError := &types.OPCLinkError{
 				StatusCode: tc.statusCode,
 			}
-			ResetStatusCode(newAPIError, tc.statusCodeConfig)
-			require.Equal(t, tc.expectedCode, newAPIError.StatusCode)
+			ResetStatusCode(opclinkError, tc.statusCodeConfig)
+			require.Equal(t, tc.expectedCode, opclinkError.StatusCode)
 		})
 	}
 }
@@ -85,10 +85,10 @@ func TestRelayErrorHandlerTruncatesInvalidJSONBodyInLog(t *testing.T) {
 		Body:       io.NopCloser(strings.NewReader(body)),
 	}
 
-	newAPIError := RelayErrorHandler(context.Background(), resp, false)
+	opclinkError := RelayErrorHandler(context.Background(), resp, false)
 
-	require.NotNil(t, newAPIError)
-	require.Equal(t, "bad response status code 500", newAPIError.Error())
+	require.NotNil(t, opclinkError)
+	require.Equal(t, "bad response status code 500", opclinkError.Error())
 	require.Contains(t, logBuffer.String(), "[truncated")
 	require.Contains(t, logBuffer.String(), fmt.Sprintf("original_length=%d", len(body)))
 	require.NotContains(t, logBuffer.String(), strings.Repeat("b", common.LocalLogContentLimit+1))
@@ -102,10 +102,10 @@ func TestRelayErrorHandlerKeepsStructuredErrorMessage(t *testing.T) {
 		Body:       io.NopCloser(strings.NewReader(body)),
 	}
 
-	newAPIError := RelayErrorHandler(context.Background(), resp, false)
+	opclinkError := RelayErrorHandler(context.Background(), resp, false)
 
-	require.NotNil(t, newAPIError)
-	require.Equal(t, message, newAPIError.Error())
+	require.NotNil(t, opclinkError)
+	require.Equal(t, message, opclinkError.Error())
 }
 
 func TestRelayErrorHandlerKeepsOpenAIErrorMessage(t *testing.T) {
@@ -116,10 +116,10 @@ func TestRelayErrorHandlerKeepsOpenAIErrorMessage(t *testing.T) {
 		Body:       io.NopCloser(strings.NewReader(body)),
 	}
 
-	newAPIError := RelayErrorHandler(context.Background(), resp, false)
+	opclinkError := RelayErrorHandler(context.Background(), resp, false)
 
-	require.NotNil(t, newAPIError)
-	require.Equal(t, message, newAPIError.Error())
+	require.NotNil(t, opclinkError)
+	require.Equal(t, message, opclinkError.Error())
 }
 
 func TestRelayErrorHandlerKeepsInvalidJSONBodyInDebugLog(t *testing.T) {
@@ -143,9 +143,9 @@ func TestRelayErrorHandlerKeepsInvalidJSONBodyInDebugLog(t *testing.T) {
 		Body:       io.NopCloser(strings.NewReader(body)),
 	}
 
-	newAPIError := RelayErrorHandler(context.Background(), resp, false)
+	opclinkError := RelayErrorHandler(context.Background(), resp, false)
 
-	require.NotNil(t, newAPIError)
+	require.NotNil(t, opclinkError)
 	require.NotContains(t, logBuffer.String(), "[truncated")
 	require.Contains(t, logBuffer.String(), body)
 }

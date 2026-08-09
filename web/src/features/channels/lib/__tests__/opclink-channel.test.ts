@@ -20,7 +20,7 @@ import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
 
 import {
-  CHANNEL_TYPE_NEW_API,
+  CHANNEL_TYPE_OPCLINK,
   CHANNEL_TYPE_OPTIONS,
   MODEL_FETCHABLE_TYPES,
 } from '../../constants'
@@ -28,44 +28,44 @@ import { CHANNEL_FORM_DEFAULT_VALUES, channelFormSchema } from '../channel-form'
 import { getChannelTypeConfig } from '../channel-type-config'
 import { getChannelTypeIcon, getKeyPromptForType } from '../channel-utils'
 
-function newAPIForm(baseUrl: string) {
+function opclinkForm(baseUrl: string) {
   return {
     ...CHANNEL_FORM_DEFAULT_VALUES,
-    name: 'New API upstream',
-    type: CHANNEL_TYPE_NEW_API,
+    name: 'OPCLink upstream',
+    type: CHANNEL_TYPE_OPCLINK,
     base_url: baseUrl,
     key: 'test-key',
     models: 'gpt-5',
   }
 }
 
-describe('New API channel', () => {
+describe('OPCLink channel', () => {
   test('registers selection, ordering, model discovery, and icon metadata', () => {
     const option = CHANNEL_TYPE_OPTIONS.find(
-      (item) => item.value === CHANNEL_TYPE_NEW_API
+      (item) => item.value === CHANNEL_TYPE_OPCLINK
     )
 
     assert.deepEqual(option, {
-      value: CHANNEL_TYPE_NEW_API,
-      label: 'New API',
+      value: CHANNEL_TYPE_OPCLINK,
+      label: 'OPCLink',
     })
     assert.equal(
       CHANNEL_TYPE_OPTIONS.findIndex(
-        (item) => item.value === CHANNEL_TYPE_NEW_API
+        (item) => item.value === CHANNEL_TYPE_OPCLINK
       ) + 1,
       CHANNEL_TYPE_OPTIONS.findIndex((item) => item.value === 58)
     )
-    assert.equal(MODEL_FETCHABLE_TYPES.has(CHANNEL_TYPE_NEW_API), true)
-    assert.equal(getChannelTypeIcon(CHANNEL_TYPE_NEW_API), 'NewAPI')
+    assert.equal(MODEL_FETCHABLE_TYPES.has(CHANNEL_TYPE_OPCLINK), true)
+    assert.equal(getChannelTypeIcon(CHANNEL_TYPE_OPCLINK), 'OPCLink')
     assert.equal(
-      getKeyPromptForType(CHANNEL_TYPE_NEW_API),
+      getKeyPromptForType(CHANNEL_TYPE_OPCLINK),
       'Enter API key for this channel'
     )
-    assert.equal(getChannelTypeConfig(CHANNEL_TYPE_NEW_API).icon, 'NewAPI')
+    assert.equal(getChannelTypeConfig(CHANNEL_TYPE_OPCLINK).icon, 'OPCLink')
   })
 
   test('requires a non-blank Base URL', () => {
-    const blankResult = channelFormSchema.safeParse(newAPIForm('  '))
+    const blankResult = channelFormSchema.safeParse(opclinkForm('  '))
 
     assert.equal(blankResult.success, false)
     if (!blankResult.success) {
@@ -80,7 +80,7 @@ describe('New API channel', () => {
     }
 
     assert.equal(
-      channelFormSchema.safeParse(newAPIForm('https://new-api.example'))
+      channelFormSchema.safeParse(opclinkForm('https://opclink.example'))
         .success,
       true
     )
@@ -88,7 +88,7 @@ describe('New API channel', () => {
 
   test('keeps Sub2API Base URL validation unchanged', () => {
     const result = channelFormSchema.safeParse({
-      ...newAPIForm(''),
+      ...opclinkForm(''),
       type: 59,
     })
 

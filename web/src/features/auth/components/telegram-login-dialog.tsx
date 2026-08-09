@@ -37,7 +37,7 @@ export function TelegramLoginDialog(props: TelegramLoginDialogProps) {
   const widgetContainer = useRef<HTMLDivElement | null>(null)
   const authorizationHandler = useRef(props.onAuthorization)
   const [callbackName] = useState(
-    () => `newApiTelegramLogin${++telegramCallbackSequence}`
+    () => `opclinkTelegramLogin${++telegramCallbackSequence}`
   )
   const [widgetState, setWidgetState] = useState<
     'idle' | 'loading' | 'ready' | 'failed'

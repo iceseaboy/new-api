@@ -55,13 +55,13 @@ jobs:
       #   if: runner.os != 'Windows'
       #   run: |
       #     go mod download
-      #     go build -ldflags "-s -w -X 'new-api/common.Version=$(git describe --tags)' -extldflags '-static'" -o new-api
+      #     go build -ldflags "-s -w -X 'github.com/QuantumNous/opclink/common.Version=$(git describe --tags)' -extldflags '-static'" -o opclink
 
       - name: Build Go binary (Windows)
         if: runner.os == 'Windows'
         run: |
           go mod download
-          go build -ldflags "-s -w -X 'new-api/common.Version=$(git describe --tags)'" -o new-api.exe
+          go build -ldflags "-s -w -X 'github.com/QuantumNous/opclink/common.Version=$(git describe --tags)'" -o opclink.exe
 
       - name: Update Electron version
         run: |

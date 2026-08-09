@@ -3,7 +3,7 @@ package jsonutil
 import (
 	"fmt"
 
-	kitutil "github.com/QuantumNous/new-api/relaykit/relayconvert/kitutil"
+	kitutil "github.com/QuantumNous/opclink/relaykit/relayconvert/kitutil"
 )
 
 func ToJSONString(v interface{}) string {

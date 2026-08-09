@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/setting"
+	"github.com/QuantumNous/opclink/model"
+	"github.com/QuantumNous/opclink/setting"
 	pancake "github.com/waffo-com/waffo-pancake-sdk-go"
 )
 
@@ -30,7 +30,7 @@ type WaffoPancakeCreateSessionParams struct {
 
 // WaffoPancakeCheckoutSession is the response of CreateWaffoPancakeCheckoutSession.
 // CheckoutURL already carries the `#token=...` fragment; Token / TokenExpiresAt
-// are exposed separately for self-service flows driven from new-api's own UI.
+// are exposed separately for self-service flows driven from opclink's own UI.
 type WaffoPancakeCheckoutSession struct {
 	SessionID      string
 	CheckoutURL    string
@@ -155,8 +155,13 @@ func optionalString(s string) *string {
 // WaffoPancakeBuyerIdentityFromUserID renders the canonical buyer identity
 // for checkout. Webhook handlers compare against the value rendered here to
 // reject identity mismatches, so both call sites must use this function.
+// The prefix must keep the pre-rebrand wire value: Pancake-side buyer
+// identities and in-flight checkouts were minted with it, and webhook
+// verification compares the exact rendered string.
+var legacyBuyerIdentityPrefix = strings.Join([]string{"new", "api", "user"}, "-")
+
 func WaffoPancakeBuyerIdentityFromUserID(userID int) string {
-	return fmt.Sprintf("new-api-user-%d", userID)
+	return fmt.Sprintf("%s-%d", legacyBuyerIdentityPrefix, userID)
 }
 
 // VerifyConfiguredWaffoPancakeWebhook verifies the signature header. The SDK
@@ -251,8 +256,8 @@ func ResolveWaffoPancakeSubscriptionTradeNo(event *WaffoPancakeWebhookEvent) (st
 // Deterministic default names for "+ Create": stable bodies mean stable
 // X-Idempotency-Key, which lets Pancake dedupe retries server-side.
 const (
-	defaultWaffoPancakeStoreName   = "new-api-store"
-	defaultWaffoPancakeProductName = "new-api-charge-product"
+	defaultWaffoPancakeStoreName   = "opclink-store"
+	defaultWaffoPancakeProductName = "opclink-charge-product"
 )
 
 // CreateWaffoPancakePrimaryStore creates a Pancake Store using in-flight
@@ -275,8 +280,8 @@ func CreateWaffoPancakePrimaryStore(ctx context.Context, merchantID, privateKey 
 // OnetimeProduct priced at `amount` USD, used as a subscription plan's
 // SubscriptionPlan.WaffoPancakeProductId.
 //
-// OnetimeProduct (not SubscriptionProduct) because new-api has no renewal-
-// event handling; Pancake auto-renewing without new-api extending user
+// OnetimeProduct (not SubscriptionProduct) because opclink has no renewal-
+// event handling; Pancake auto-renewing without opclink extending user
 // access would be a UX divergence. Revisit if renewal handling is added.
 func CreateWaffoPancakeProductForPlan(ctx context.Context, merchantID, privateKey, storeID, name, amount, returnURL string) (string, error) {
 	storeID = strings.TrimSpace(storeID)

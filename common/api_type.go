@@ -1,6 +1,6 @@
 package common
 
-import "github.com/QuantumNous/new-api/constant"
+import "github.com/QuantumNous/opclink/constant"
 
 func ChannelType2APIType(channelType int) (int, bool) {
 	apiType := -1
@@ -79,8 +79,8 @@ func ChannelType2APIType(channelType int) (int, bool) {
 		apiType = constant.APITypeAdvancedCustom
 	case constant.ChannelTypeSub2API:
 		apiType = constant.APITypeSub2API
-	case constant.ChannelTypeNewAPI:
-		apiType = constant.APITypeNewAPI
+	case constant.ChannelTypeOPCLink:
+		apiType = constant.APITypeOPCLink
 	}
 	if apiType == -1 {
 		return constant.APITypeOpenAI, false
@@ -94,7 +94,7 @@ func IsResponsesCompactAPIType(apiType int) bool {
 		constant.APITypeCodex,
 		constant.APITypeAdvancedCustom,
 		constant.APITypeSub2API,
-		constant.APITypeNewAPI:
+		constant.APITypeOPCLink:
 		return true
 	default:
 		return false
