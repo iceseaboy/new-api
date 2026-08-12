@@ -243,6 +243,12 @@ var aliRatios = map[string]map[string]float64{
 		"480P": 1,
 		"720P": 0.9 / 0.5,
 	},
+	// wan3.0-video：基准 480P ¥0.3/s，720P ¥0.6/s，1080P ¥1.2/s
+	"wan3.0-video": {
+		"480P":  1,
+		"720P":  2,
+		"1080P": 4,
+	},
 	// happyhorse t2v/i2v/r2v：基准 480P ¥0.27/s，720P ¥0.54/s，1080P ¥0.72/s
 	"happyhorse-1.1-t2v": {
 		"480P":  1,
