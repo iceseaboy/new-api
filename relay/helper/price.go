@@ -67,6 +67,14 @@ func HandleGroupRatio(ctx *gin.Context, relayInfo *relaycommon.RelayInfo) hostty
 		groupRatioInfo.GroupRatio = ratio_setting.GetGroupRatio(relayInfo.UsingGroup)
 	}
 
+	// per-user per-model discount, folded into GroupRatio so every billing
+	// path (ratio, per-call, tiered expr) inherits it consistently
+	if userModelRatio, ok := ratio_setting.GetUserModelRatio(relayInfo.UserId, relayInfo.OriginModelName); ok {
+		groupRatioInfo.UserModelRatio = userModelRatio
+		groupRatioInfo.HasUserModelRatio = true
+		groupRatioInfo.GroupRatio *= userModelRatio
+	}
+
 	return groupRatioInfo
 }
 

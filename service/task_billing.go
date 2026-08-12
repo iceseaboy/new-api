@@ -47,6 +47,9 @@ func LogTaskConsumption(c *gin.Context, info *relaycommon.RelayInfo) {
 	if info.PriceData.GroupRatioInfo.HasSpecialRatio {
 		other["user_group_ratio"] = info.PriceData.GroupRatioInfo.GroupSpecialRatio
 	}
+	if info.PriceData.GroupRatioInfo.HasUserModelRatio {
+		other["user_model_ratio"] = info.PriceData.GroupRatioInfo.UserModelRatio
+	}
 	if info.IsModelMapped {
 		other["is_model_mapped"] = true
 		other["upstream_model_name"] = info.UpstreamModelName
@@ -321,6 +324,9 @@ func RecalculateTaskQuotaByTokens(ctx context.Context, task *model.Task, totalTo
 		finalGroupRatio = userGroupRatio
 	} else {
 		finalGroupRatio = groupRatio
+	}
+	if userModelRatio, hasUserModelRatio := ratio_setting.GetUserModelRatio(task.UserId, modelName); hasUserModelRatio {
+		finalGroupRatio *= userModelRatio
 	}
 
 	// 计算 OtherRatios 乘积（视频折扣、时长等）

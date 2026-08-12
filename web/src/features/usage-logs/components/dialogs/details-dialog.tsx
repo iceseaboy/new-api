@@ -290,6 +290,14 @@ function BillingBreakdown(props: {
     })
   }
 
+  const userMR = other.user_model_ratio
+  if (userMR != null && Number.isFinite(userMR) && userMR !== 1) {
+    rows.push({
+      label: t('User Model Discount'),
+      value: `${formatRatio(userMR)}x`,
+    })
+  }
+
   if (!isTieredExpr && isClaude && hasAnyCacheTokens(other)) {
     if (other.cache_ratio != null && other.cache_ratio !== 1) {
       rows.push({

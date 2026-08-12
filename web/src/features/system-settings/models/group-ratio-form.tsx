@@ -69,6 +69,7 @@ type GroupFormValues = {
   TopupGroupRatio: string
   UserUsableGroups: string
   GroupGroupRatio: string
+  UserModelRatio: string
   AutoGroups: string
   MaxTokenAutoGroups: number
   DefaultUseAutoGroup: boolean
@@ -216,6 +217,32 @@ export const GroupRatioForm = memo(function GroupRatioForm({
 
             <FormField
               control={form.control}
+              name='UserModelRatio'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Per-user model discounts')}</FormLabel>
+                  <FormControl>
+                    <JsonCodeEditor
+                      value={field.value}
+                      onChange={field.onChange}
+                      name={field.name}
+                      onBlur={field.onBlur}
+                      textareaRef={field.ref}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t('Nested JSON: user ID →')} {`{ model: ratio }`}{' '}
+                    {t(
+                      'multiplies on top of the group ratio for that user only. A trailing * matches model prefixes; exact names win over the longest matching prefix.'
+                    )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name='DefaultUseAutoGroup'
               render={({ field }) => (
                 <SettingsSwitchItem>
@@ -337,6 +364,32 @@ export const GroupRatioForm = memo(function GroupRatioForm({
                     {`{ targetGroup: ratio }`}{' '}
                     {t(
                       'to override billing when a user in one group uses a token of another group.'
+                    )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='UserModelRatio'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Per-user model discounts')}</FormLabel>
+                  <FormControl>
+                    <JsonCodeEditor
+                      value={field.value}
+                      onChange={field.onChange}
+                      name={field.name}
+                      onBlur={field.onBlur}
+                      textareaRef={field.ref}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t('Nested JSON: user ID →')} {`{ model: ratio }`}{' '}
+                    {t(
+                      'multiplies on top of the group ratio for that user only. A trailing * matches model prefixes; exact names win over the longest matching prefix.'
                     )}
                   </FormDescription>
                   <FormMessage />

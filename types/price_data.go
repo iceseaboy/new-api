@@ -11,6 +11,10 @@ type GroupRatioInfo struct {
 	GroupRatio        float64
 	GroupSpecialRatio float64
 	HasSpecialRatio   bool
+	// UserModelRatio is a per-user per-model multiplier already folded into
+	// GroupRatio; kept separately so logs can show why the ratio deviates.
+	UserModelRatio    float64
+	HasUserModelRatio bool
 }
 
 type PriceData struct {

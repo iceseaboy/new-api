@@ -1,0 +1,6 @@
+{
+  "multiplies on top of the group ratio for that user only. A trailing * matches model prefixes; exact names win over the longest matching prefix.": "multiplies on top of the group ratio for that user only. A trailing * matches model prefixes; exact names win over the longest matching prefix.",
+  "Nested JSON: user ID →": "Nested JSON: user ID →",
+  "Per-user model discounts": "Per-user model discounts",
+  "User Model Discount": "User Model Discount"
+}
