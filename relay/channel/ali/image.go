@@ -54,8 +54,8 @@ func oaiImage2AliImageRequest(info *relaycommon.RelayInfo, request dto.ImageRequ
 		}
 	}
 
-	// vidu 系列按输出分辨率档计费（ModelPrice 为 1K 基准价）
-	if tier, ratio, ok := viduImageResolutionRatio(request.Model, &imageRequest.Parameters); ok && ratio != 1.0 {
+	// 按输出分辨率档计费的图片模型（ModelPrice 为 1K 基准价）
+	if tier, ratio, ok := aliImageResolutionRatio(request.Model, &imageRequest.Parameters); ok && ratio != 1.0 {
 		info.PriceData.AddOtherRatio("resolution-"+tier, ratio)
 	}
 
@@ -96,18 +96,20 @@ func oaiImage2AliImageRequest(info *relaycommon.RelayInfo, request dto.ImageRequ
 
 	return &imageRequest, nil
 }
-// viduImagePriceTiers 各 vidu 模型分辨率档相对 1K 基准价的计费倍率。
-var viduImagePriceTiers = map[string]map[string]float64{
+// aliImagePriceTiers 各图片模型分辨率档相对 1K 基准价的计费倍率。
+var aliImagePriceTiers = map[string]map[string]float64{
 	"vidu/viduq2-fast_reference2image": {"1K": 1}, // 仅 1K 档
 	"vidu/viduq2-pro_reference2image":  {"1K": 1, "2K": 1, "4K": 1.71875 / 0.9375},
 	"vidu/viduq3-fast_reference2image": {"1K": 1, "2K": 0.78125 / 0.46875, "4K": 1.09375 / 0.46875},
+	// qwen-image-3.0-pro：1K ¥0.25/张 基准，2K ¥0.5/张；qwen-image-3.0 两档同价（¥0.18）无需条目
+	"qwen-image-3.0-pro": {"1K": 1, "2K": 2},
 }
 
-// viduImageResolutionRatio 解析请求的分辨率档并返回计费倍率。
+// aliImageResolutionRatio 解析请求的分辨率档并返回计费倍率。
 // 档位来源优先级：parameters.resolution（1K/2K/4K）> parameters.size 最长边推断 > 默认 1K。
 // 未配置价目的模型返回 ok=false；未知档位按 1K 基准价。
-func viduImageResolutionRatio(modelName string, params *AliImageParameters) (string, float64, bool) {
-	tiers, ok := viduImagePriceTiers[modelName]
+func aliImageResolutionRatio(modelName string, params *AliImageParameters) (string, float64, bool) {
+	tiers, ok := aliImagePriceTiers[modelName]
 	if !ok {
 		return "", 0, false
 	}

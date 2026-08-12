@@ -127,7 +127,7 @@ func TestConvertOpenAIRequestPreservesExplicitZeroForMappedQwenModel(t *testing.
 	assert.Equal(t, int64(0), value.Int())
 }
 
-func TestViduImageResolutionRatio(t *testing.T) {
+func TestAliImageResolutionRatio(t *testing.T) {
 	cases := []struct {
 		name      string
 		model     string
@@ -142,11 +142,15 @@ func TestViduImageResolutionRatio(t *testing.T) {
 		{"q2-pro 2K同1K价", "vidu/viduq2-pro_reference2image", AliImageParameters{Size: "2048*2048"}, "2K", 1.0, true},
 		{"q2-pro 4K", "vidu/viduq2-pro_reference2image", AliImageParameters{Resolution: "4K"}, "4K", 1.71875 / 0.9375, true},
 		{"q2-fast 不支持档按基准", "vidu/viduq2-fast_reference2image", AliImageParameters{Resolution: "4K"}, "4K", 1.0, true},
-		{"非vidu模型", "wanx-v1", AliImageParameters{}, "", 0, false},
+		{"qwen-image-pro 默认1K", "qwen-image-3.0-pro", AliImageParameters{}, "1K", 1.0, true},
+		{"qwen-image-pro resolution=2K", "qwen-image-3.0-pro", AliImageParameters{Resolution: "2K"}, "2K", 2.0, true},
+		{"qwen-image-pro size推断2K", "qwen-image-3.0-pro", AliImageParameters{Size: "2048*2048"}, "2K", 2.0, true},
+		{"qwen-image 普通版无档位表", "qwen-image-3.0", AliImageParameters{Size: "2048*2048"}, "", 0, false},
+		{"非配价模型", "wanx-v1", AliImageParameters{}, "", 0, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			tier, ratio, ok := viduImageResolutionRatio(tc.model, &tc.params)
+			tier, ratio, ok := aliImageResolutionRatio(tc.model, &tc.params)
 			if ok != tc.wantOK || tier != tc.wantTier {
 				t.Fatalf("tier=%q ok=%v, want %q %v", tier, ok, tc.wantTier, tc.wantOK)
 			}
