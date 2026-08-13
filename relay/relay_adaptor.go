@@ -40,6 +40,7 @@ import (
 	taskjimeng "github.com/QuantumNous/opclink/relay/channel/task/jimeng"
 	"github.com/QuantumNous/opclink/relay/channel/task/kling"
 	tasksora "github.com/QuantumNous/opclink/relay/channel/task/sora"
+	tasksubmodel "github.com/QuantumNous/opclink/relay/channel/task/submodel"
 	"github.com/QuantumNous/opclink/relay/channel/task/suno"
 	taskvertex "github.com/QuantumNous/opclink/relay/channel/task/vertex"
 	taskVidu "github.com/QuantumNous/opclink/relay/channel/task/vidu"
@@ -168,6 +169,8 @@ func GetTaskAdaptor(platform constant.TaskPlatform) channel.TaskAdaptor {
 			return &taskGemini.TaskAdaptor{}
 		case constant.ChannelTypeMiniMax:
 			return &hailuo.TaskAdaptor{}
+		case constant.ChannelTypeSubmodel:
+			return &tasksubmodel.TaskAdaptor{}
 		}
 	}
 	return nil
