@@ -28,6 +28,7 @@ import {
   TASK_STATUS_MAPPINGS,
   TASK_PLATFORM_MAPPINGS,
 } from '../constants'
+import { CHANNEL_TYPES } from '@/features/channels/constants'
 import { createStatusMapper } from './status'
 
 // ============================================================================
@@ -69,3 +70,16 @@ export const taskStatusMapper = createStatusMapper(TASK_STATUS_MAPPINGS)
  * Task platform mapper
  */
 export const taskPlatformMapper = createStatusMapper(TASK_PLATFORM_MAPPINGS)
+
+/**
+ * Resolve a task platform value to a display label. Numeric platforms are
+ * channel-type IDs (e.g. "17" → Ali, "53" → Submodel); legacy named
+ * platforms (suno/kling/...) keep their mapping, unknown values pass through.
+ */
+export function resolveTaskPlatformLabel(platform: string): string {
+  if (/^\d+$/.test(platform)) {
+    const label = CHANNEL_TYPES[Number(platform) as keyof typeof CHANNEL_TYPES]
+    if (label) return label
+  }
+  return taskPlatformMapper.getLabel(platform, platform)
+}
