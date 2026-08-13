@@ -301,6 +301,7 @@ export interface TaskLog {
   platform: string // suno, kling, runway, etc.
   task_id: string
   upstream_task_id?: string // 上游真实任务 ID
+  result_url?: string // 任务结果直链（视频地址等）
   action: string // MUSIC, LYRICS, GENERATE, TEXT_GENERATE, etc.
   channel_id: number
   quota?: number // 消耗额度（结算后为实际额度）

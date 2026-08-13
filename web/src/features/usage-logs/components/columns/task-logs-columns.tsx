@@ -283,7 +283,11 @@ export function useTaskLogsColumns(isAdmin: boolean): ColumnDef<TaskLog>[] {
         const isSuccess = status === TASK_STATUS.SUCCESS
 
         if (isSuccess && isVideoTask) {
-          const videoUrl = `/v1/videos/${log.task_id}/content`
+          // 优先上游直链：控制台鉴权是内存 JWT，裸 <a> 新标签不带请求头，
+          // 走 /v1/videos 代理会被令牌校验拒绝；无直链的平台才回退代理路径
+          const videoUrl = log.result_url?.startsWith('http')
+            ? log.result_url
+            : `/v1/videos/${log.task_id}/content`
           return (
             <a
               href={videoUrl}
