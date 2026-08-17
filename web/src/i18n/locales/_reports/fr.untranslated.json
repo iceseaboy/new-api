@@ -1,3 +1,9 @@
 {
-  "multiplies on top of the group ratio for that user only. A trailing * matches model prefixes; exact names win over the longest matching prefix.": "multiplies on top of the group ratio for that user only. A trailing * matches model prefixes; exact names win over the longest matching prefix."
+  "'*' is only allowed at the end as a prefix wildcard": "'*' is only allowed at the end as a prefix wildcard",
+  "Failed to load discounts": "Failed to load discounts",
+  "Failed to save discounts": "Failed to save discounts",
+  "Model or prefix*": "Model or prefix*",
+  "multiplies on top of the group ratio for that user only. A trailing * matches model prefixes; exact names win over the longest matching prefix.": "multiplies on top of the group ratio for that user only. A trailing * matches model prefixes; exact names win over the longest matching prefix.",
+  "Per-model price multipliers for {{username}} (user ID {{id}}). A trailing * matches model prefixes; exact names beat the longest prefix. 0.55 bills at 55% of the list price.": "Per-model price multipliers for {{username}} (user ID {{id}}). A trailing * matches model prefixes; exact names beat the longest prefix. 0.55 bills at 55% of the list price.",
+  "Ratio must be greater than 0 and at most 10": "Ratio must be greater than 0 and at most 10"
 }
