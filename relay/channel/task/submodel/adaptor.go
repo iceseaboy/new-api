@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/opclink/constant"
 	taskdto "github.com/QuantumNous/opclink/dto"
 	"github.com/QuantumNous/opclink/logger"
 	"github.com/QuantumNous/opclink/model"
@@ -23,26 +24,50 @@ import (
 )
 
 // MiniMax H3（h3.submodel.ai）视频生成任务适配器。
-// 提交：POST /v2/video_generation；查询：GET /v2/query/video_generation/{task_id}。
-// 计费：ModelPrice 为 768P 每秒单价，2K 档按官方价比 ×(0.13/0.08)；
-// 结算按 usage.total_seconds（参考视频按输入时长与输出同价计费，total_seconds 已包含）。
+// 提交：POST /v2/video_generation；再生成：POST /v2/video_regeneration（走标准
+// remix 路由 /v1/videos/{task_id}/remix）；Context-IR：POST /v2/h3_context_ir
+// （模型名 MiniMax-H3-context-ir）；查询：GET /v2/query/video_generation/{task_id}。
+//
+// 计费（官方刊例价，人民币 ÷7.2 为美元系数，ModelPrice 为 768P 生成每秒基准价 ¥0.50/s）：
+// - 生成：768P ¥0.50/s、2K ¥0.80/s（×1.6）；参考视频按输入时长与输出同价，
+//   usage.total_seconds 已含；图片超 5 张每张 ¥0.20（折 0.4 个基准秒，结算期计）
+// - 再生成（768P→2K）：¥0.30/s（×0.6），含原任务输入视频秒数；图片超 5 张每张
+//   ¥0.15（折 0.3 个基准秒）
+// - Context-IR：按 token 结算，输入 ¥5.8/百万、输出 ¥23/百万；ModelPrice 仅作按次预扣
 
 var ModelList = []string{
 	"MiniMax-H3",
+	"MiniMax-H3-context-ir",
 }
 
 const ChannelName = "submodel"
 
-// h3ResolutionRatios 分辨率档相对 768P 基准价的计费倍率（官方 768P $0.08/s、2K $0.13/s）
+// h3UpstreamModel 上游统一模型标识（Context-IR 网关侧用独立模型名区分计费与路由）
+const h3UpstreamModel = "MiniMax-H3"
+
+const h3ContextIRModel = "MiniMax-H3-context-ir"
+
+// h3ResolutionRatios 分辨率档相对 768P 基准价的计费倍率（官方 768P ¥0.50/s、2K ¥0.80/s）
 var h3ResolutionRatios = map[string]float64{
 	"768P": 1,
-	"2K":   0.13 / 0.08,
+	"2K":   0.8 / 0.5,
 }
 
 const (
 	h3MinDurationSeconds     = 4
 	h3MaxDurationSeconds     = 15
 	h3DefaultDurationSeconds = 5
+
+	// 再生成每秒价相对生成基准价的倍率（¥0.30 / ¥0.50）
+	h3RegenRateRatio = 0.3 / 0.5
+	// 免费输入图片张数（生成与再生成一致）
+	h3FreeInputImageCount = 5
+	// 超量图片折算成基准秒的当量：生成 ¥0.20/张、再生成 ¥0.15/张
+	h3GenExtraImageSecondsEq   = 0.2 / 0.5
+	h3RegenExtraImageSecondsEq = 0.15 / 0.5
+	// Context-IR 每百万 token 美元价（官方 ¥5.8 / ¥23 ÷ 7.2）
+	h3ContextIRPromptUSDPerM     = 5.8 / 7.2
+	h3ContextIRCompletionUSDPerM = 23.0 / 7.2
 )
 
 type h3CreateRequest struct {
@@ -52,6 +77,19 @@ type h3CreateRequest struct {
 	Duration      int                           `json:"duration"`
 	Ratio         string                        `json:"ratio,omitempty"`
 	AigcWatermark *bool                         `json:"aigc_watermark,omitempty"`
+}
+
+type h3RegenRequest struct {
+	Model        string `json:"model"`
+	SourceTaskID string `json:"source_task_id"`
+	Resolution   string `json:"resolution"`
+}
+
+type h3ContextIRRequest struct {
+	Model    string                        `json:"model"`
+	Content  []relaycommon.TaskContentItem `json:"content"`
+	Duration int                           `json:"duration,omitempty"`
+	Ratio    string                        `json:"ratio,omitempty"`
 }
 
 // h3Metadata 平铺 metadata 覆盖项（与统一视频请求的 metadata 写法一致）
@@ -86,6 +124,10 @@ type h3Usage struct {
 	InputSeconds    int `json:"input_seconds,omitempty"`
 	OutputSeconds   int `json:"output_seconds,omitempty"`
 	InputImageCount int `json:"input_image_count,omitempty"`
+	// Context-IR 任务返回 token 用量
+	TotalTokens      int `json:"total_tokens,omitempty"`
+	PromptTokens     int `json:"prompt_tokens,omitempty"`
+	CompletionTokens int `json:"completion_tokens,omitempty"`
 }
 
 type h3Progress struct {
@@ -125,10 +167,27 @@ func (a *TaskAdaptor) Init(info *relaycommon.RelayInfo) {
 }
 
 func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycommon.RelayInfo) (taskErr *taskdto.TaskError) {
+	// 再生成（/v1/videos/{task_id}/remix）：源任务由框架 ResolveOriginTask 解析，
+	// 请求体无需 prompt，宽松解析后入栈供 Build/Estimate 复用
+	if info.Action == constant.TaskActionRemix {
+		var req relaycommon.TaskSubmitReq
+		_ = common.UnmarshalBodyReusable(c, &req)
+		if req.Model == "" {
+			req.Model = info.OriginModelName
+		}
+		c.Set("task_request", req)
+		return nil
+	}
 	return relaycommon.ValidateMultipartDirect(c, info)
 }
 
 func (a *TaskAdaptor) BuildRequestURL(info *relaycommon.RelayInfo) (string, error) {
+	if info.Action == constant.TaskActionRemix {
+		return fmt.Sprintf("%s/v2/video_regeneration", a.baseURL), nil
+	}
+	if info.OriginModelName == h3ContextIRModel {
+		return fmt.Sprintf("%s/v2/h3_context_ir", a.baseURL), nil
+	}
 	return fmt.Sprintf("%s/v2/video_generation", a.baseURL), nil
 }
 
@@ -139,22 +198,115 @@ func (a *TaskAdaptor) BuildRequestHeader(c *gin.Context, req *http.Request, info
 }
 
 func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayInfo) (io.Reader, error) {
-	taskReq, err := relaycommon.GetTaskRequest(c)
-	if err != nil {
-		return nil, errors.Wrap(err, "get_task_request_failed")
+	var payload any
+	switch {
+	case info.Action == constant.TaskActionRemix:
+		regenReq, err := buildRegenRequest(info)
+		if err != nil {
+			return nil, err
+		}
+		payload = regenReq
+	case info.OriginModelName == h3ContextIRModel:
+		taskReq, err := relaycommon.GetTaskRequest(c)
+		if err != nil {
+			return nil, errors.Wrap(err, "get_task_request_failed")
+		}
+		ctxReq, err := convertToContextIRRequest(taskReq)
+		if err != nil {
+			return nil, errors.Wrap(err, "convert_to_context_ir_request_failed")
+		}
+		payload = ctxReq
+	default:
+		taskReq, err := relaycommon.GetTaskRequest(c)
+		if err != nil {
+			return nil, errors.Wrap(err, "get_task_request_failed")
+		}
+		h3Req, err := convertToH3Request(info, taskReq)
+		if err != nil {
+			return nil, errors.Wrap(err, "convert_to_h3_request_failed")
+		}
+		payload = h3Req
 	}
+	logger.LogJson(c, "submodel h3 request body", payload)
 
-	h3Req, err := convertToH3Request(info, taskReq)
-	if err != nil {
-		return nil, errors.Wrap(err, "convert_to_h3_request_failed")
-	}
-	logger.LogJson(c, "submodel h3 request body", h3Req)
-
-	bodyBytes, err := common.Marshal(h3Req)
+	bodyBytes, err := common.Marshal(payload)
 	if err != nil {
 		return nil, errors.Wrap(err, "marshal_h3_request_failed")
 	}
 	return bytes.NewReader(bodyBytes), nil
+}
+
+// buildRegenRequest 由框架解析出的源任务（info.OriginTaskID 为本站任务 ID）
+// 构造再生成请求；上游要求其自身的任务 ID。
+func buildRegenRequest(info *relaycommon.RelayInfo) (*h3RegenRequest, error) {
+	originTask, exist, err := model.GetByTaskId(info.UserId, info.OriginTaskID)
+	if err != nil {
+		return nil, errors.Wrap(err, "get_origin_task_failed")
+	}
+	if !exist || originTask == nil {
+		return nil, errors.New("origin task not found")
+	}
+	upstreamID := originTask.GetUpstreamTaskID()
+	if upstreamID == "" {
+		return nil, errors.New("origin task has no upstream task id")
+	}
+	return &h3RegenRequest{
+		Model:        h3UpstreamModel,
+		SourceTaskID: upstreamID,
+		Resolution:   "2K",
+	}, nil
+}
+
+// convertToContextIRRequest 构造上下文理解任务请求（输出为增强后的提示词文本）
+func convertToContextIRRequest(req relaycommon.TaskSubmitReq) (*h3ContextIRRequest, error) {
+	req.NormalizeForCompatibility()
+
+	var meta h3Metadata
+	if err := taskcommon.UnmarshalMetadata(req.Metadata, &meta); err != nil {
+		return nil, err
+	}
+
+	content := meta.Content
+	if len(content) == 0 {
+		if strings.TrimSpace(req.Prompt) != "" {
+			content = append(content, relaycommon.TaskContentItem{Type: "text", Text: req.Prompt})
+		}
+		for _, img := range req.Images {
+			content = append(content, relaycommon.TaskContentItem{
+				Type: "image_url", Role: "reference_image",
+				ImageURL: &relaycommon.TaskMediaURL{URL: img},
+			})
+		}
+	}
+	hasText := false
+	for _, item := range content {
+		if item.Type == "text" && strings.TrimSpace(item.Text) != "" {
+			hasText = true
+			break
+		}
+	}
+	if !hasText {
+		return nil, errors.New("h3 context ir requires a non-empty text prompt")
+	}
+
+	duration := req.Duration
+	if meta.Duration != nil {
+		duration = *meta.Duration
+	}
+	if duration != 0 && (duration < h3MinDurationSeconds || duration > h3MaxDurationSeconds) {
+		return nil, fmt.Errorf("duration must be between %d and %d seconds", h3MinDurationSeconds, h3MaxDurationSeconds)
+	}
+	ratio := ""
+	if meta.Ratio != nil {
+		ratio = strings.TrimSpace(*meta.Ratio)
+	}
+
+	return &h3ContextIRRequest{
+		Model:    h3UpstreamModel,
+		Content:  content,
+		Duration: duration,
+		Ratio:    ratio,
+	}, nil
 }
 
 func normalizeH3Resolution(s string) string {
@@ -270,8 +422,27 @@ func convertToH3Request(info *relaycommon.RelayInfo, req relaycommon.TaskSubmitR
 	}, nil
 }
 
-// EstimateBilling 预扣倍率：秒数 × 分辨率档
+// EstimateBilling 预扣倍率。生成：秒数 × 分辨率档；再生成：源任务时长 × 0.6；
+// Context-IR：按 ModelPrice 按次预扣（结算期按 token 精确重算）。
+// 超量图片加价在提交时不可靠预知，统一由结算差额补收。
 func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInfo) map[string]float64 {
+	if info.OriginModelName == h3ContextIRModel {
+		return nil
+	}
+	if info.Action == constant.TaskActionRemix {
+		seconds := h3DefaultDurationSeconds
+		if originTask, exist, err := model.GetByTaskId(info.UserId, info.OriginTaskID); err == nil && exist && originTask != nil {
+			var originResp h3QueryResponse
+			if err := common.Unmarshal(originTask.Data, &originResp); err == nil && originResp.Task.Duration > 0 {
+				seconds = originResp.Task.Duration
+			}
+		}
+		return map[string]float64{
+			"seconds":    float64(min(seconds, relaycommon.MaxTaskDurationSeconds)),
+			"regen_rate": h3RegenRateRatio,
+		}
+	}
+
 	taskReq, err := relaycommon.GetTaskRequest(c)
 	if err != nil {
 		return nil
@@ -290,11 +461,12 @@ func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInf
 	return otherRatios
 }
 
-// AdjustBillingOnComplete 按上游 usage.total_seconds 与实际分辨率重算额度。
-// 参考视频输入按其时长与输出同价计费，total_seconds 已含输入+输出秒数。
+// AdjustBillingOnComplete 结算期按上游 usage 精确重算额度。
+// 生成/再生成按 total_seconds（含参考视频输入秒数）+ 超量图片秒当量；
+// Context-IR 按 prompt/completion token 与官方单价重算。
 func (a *TaskAdaptor) AdjustBillingOnComplete(task *model.Task, _ *relaycommon.TaskInfo) int {
 	bc := task.PrivateData.BillingContext
-	if bc == nil || bc.ModelPrice <= 0 {
+	if bc == nil {
 		return 0
 	}
 	var queryResp h3QueryResponse
@@ -302,14 +474,47 @@ func (a *TaskAdaptor) AdjustBillingOnComplete(task *model.Task, _ *relaycommon.T
 		return 0
 	}
 	usage := queryResp.Task.Usage
-	if usage == nil || usage.TotalSeconds <= 0 {
+	if usage == nil {
 		return 0
 	}
-	resRatio := 1.0
-	if r, ok := h3ResolutionRatios[normalizeH3Resolution(queryResp.Task.Resolution)]; ok {
-		resRatio = r
+
+	modelName := task.Properties.OriginModelName
+	if modelName == "" {
+		modelName = task.Properties.UpstreamModelName
 	}
-	quota, clamp := common.QuotaFromFloatChecked(bc.ModelPrice * common.QuotaPerUnit * bc.GroupRatio * resRatio * float64(usage.TotalSeconds))
+
+	var rawCost float64
+	switch {
+	case modelName == h3ContextIRModel:
+		if usage.PromptTokens <= 0 && usage.CompletionTokens <= 0 {
+			return 0
+		}
+		rawCost = (float64(usage.PromptTokens)*h3ContextIRPromptUSDPerM +
+			float64(usage.CompletionTokens)*h3ContextIRCompletionUSDPerM) / 1_000_000 *
+			common.QuotaPerUnit * bc.GroupRatio
+	case task.Action == constant.TaskActionRemix:
+		if bc.ModelPrice <= 0 || usage.TotalSeconds <= 0 {
+			return 0
+		}
+		extraImages := max(0, usage.InputImageCount-h3FreeInputImageCount)
+		secondsEq := h3RegenRateRatio*float64(usage.TotalSeconds) +
+			h3RegenExtraImageSecondsEq*float64(extraImages)
+		rawCost = bc.ModelPrice * common.QuotaPerUnit * bc.GroupRatio * secondsEq
+	default:
+		if bc.ModelPrice <= 0 || usage.TotalSeconds <= 0 {
+			return 0
+		}
+		resRatio := 1.0
+		if r, ok := h3ResolutionRatios[normalizeH3Resolution(queryResp.Task.Resolution)]; ok {
+			resRatio = r
+		}
+		extraImages := max(0, usage.InputImageCount-h3FreeInputImageCount)
+		secondsEq := resRatio*float64(usage.TotalSeconds) +
+			h3GenExtraImageSecondsEq*float64(extraImages)
+		rawCost = bc.ModelPrice * common.QuotaPerUnit * bc.GroupRatio * secondsEq
+	}
+
+	quota, clamp := common.QuotaFromFloatChecked(rawCost)
 	if clamp != nil {
 		common.SysError(fmt.Sprintf("submodel h3 settle quota clamped: task=%s original=%f clamped=%d", task.TaskID, clamp.Original, clamp.Clamped))
 	}
@@ -411,6 +616,10 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 		if task.Content != nil {
 			taskResult.Url = task.Content.URL
 		}
+		if task.Usage != nil {
+			taskResult.CompletionTokens = task.Usage.CompletionTokens
+			taskResult.TotalTokens = task.Usage.TotalTokens
+		}
 	case "failed", "cancelled":
 		taskResult.Status = model.TaskStatusFailure
 		if task.Error != nil && task.Error.Message != "" {
@@ -441,6 +650,10 @@ func (a *TaskAdaptor) ConvertToOpenAIVideo(task *model.Task) ([]byte, error) {
 
 	if queryResp.Task.Content != nil && queryResp.Task.Content.URL != "" {
 		openAIResp.SetMetadata("url", queryResp.Task.Content.URL)
+	}
+	if queryResp.Task.Content != nil && queryResp.Task.Content.Prompt != "" {
+		// Context-IR 任务的结果是增强后的提示词文本
+		openAIResp.SetMetadata("prompt", queryResp.Task.Content.Prompt)
 	}
 	if queryResp.Task.Error != nil {
 		openAIResp.Error = &dto.OpenAIVideoError{

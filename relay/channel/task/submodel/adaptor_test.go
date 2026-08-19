@@ -116,21 +116,88 @@ func TestAdjustBillingOnCompleteUsesTotalSecondsAndResolution(t *testing.T) {
 		Data: []byte(`{"task":{"id":"1","status":"succeeded","resolution":"2K","usage":{"total_seconds":10,"output_seconds":8,"input_seconds":2}}}`),
 	}
 	task.PrivateData.BillingContext = &model.TaskBillingContext{
-		ModelPrice: 0.08,
+		ModelPrice: 0.0694444,
 		GroupRatio: 1,
 	}
 	quota := a.AdjustBillingOnComplete(task, nil)
-	// 0.08 * 500000 * 1 * (0.13/0.08) * 10 = 650000
-	assert.Equal(t, 650000, quota)
+	// 0.0694444 * 500000 * 1 * (0.8/0.5) * 10 = 555555.2 → ¥8 = 2K ¥0.8/s × 10s
+	assert.Equal(t, 555555, quota)
 
 	task768 := &model.Task{
 		Data: []byte(`{"task":{"id":"1","status":"succeeded","resolution":"768P","usage":{"total_seconds":5}}}`),
 	}
-	task768.PrivateData.BillingContext = &model.TaskBillingContext{ModelPrice: 0.08, GroupRatio: 0.5}
-	// 0.08 * 500000 * 0.5 * 1 * 5 = 100000
-	assert.Equal(t, 100000, a.AdjustBillingOnComplete(task768, nil))
+	task768.PrivateData.BillingContext = &model.TaskBillingContext{ModelPrice: 0.0694444, GroupRatio: 0.5}
+	// 0.0694444 * 500000 * 0.5 * 1 * 5 = 86805.5
+	assert.Equal(t, 86805, a.AdjustBillingOnComplete(task768, nil))
 
 	noUsage := &model.Task{Data: []byte(`{"task":{"id":"1","status":"succeeded"}}`)}
-	noUsage.PrivateData.BillingContext = &model.TaskBillingContext{ModelPrice: 0.08, GroupRatio: 1}
+	noUsage.PrivateData.BillingContext = &model.TaskBillingContext{ModelPrice: 0.0694444, GroupRatio: 1}
 	assert.Equal(t, 0, a.AdjustBillingOnComplete(noUsage, nil))
+}
+
+func TestAdjustBillingExtraImagesSurcharge(t *testing.T) {
+	a := &TaskAdaptor{}
+	// 768P 4 秒 + 7 张输入图（超 2 张,每张 0.4 秒当量）：4 + 0.8 = 4.8 基准秒
+	task := &model.Task{
+		Data: []byte(`{"task":{"id":"1","status":"succeeded","resolution":"768P","usage":{"total_seconds":4,"input_image_count":7}}}`),
+	}
+	task.PrivateData.BillingContext = &model.TaskBillingContext{ModelPrice: 0.0694444, GroupRatio: 1}
+	// 0.0694444 * 500000 * 4.8 = 166666.56 → ¥2.4 = 4×0.5 + 2×0.2
+	assert.Equal(t, 166666, a.AdjustBillingOnComplete(task, nil))
+
+	// 5 张以内免费
+	free := &model.Task{
+		Data: []byte(`{"task":{"id":"1","status":"succeeded","resolution":"768P","usage":{"total_seconds":4,"input_image_count":5}}}`),
+	}
+	free.PrivateData.BillingContext = &model.TaskBillingContext{ModelPrice: 0.0694444, GroupRatio: 1}
+	assert.Equal(t, 138888, a.AdjustBillingOnComplete(free, nil))
+}
+
+func TestAdjustBillingRegen(t *testing.T) {
+	a := &TaskAdaptor{}
+	// 再生成:输出+原输入视频共 10 秒 × ¥0.30/s,超量图 2 张 × ¥0.15
+	task := &model.Task{
+		Action: "remixGenerate",
+		Data:   []byte(`{"task":{"id":"1","status":"succeeded","resolution":"2K","task_type":"regeneration","usage":{"total_seconds":10,"input_image_count":7}}}`),
+	}
+	task.PrivateData.BillingContext = &model.TaskBillingContext{ModelPrice: 0.0694444, GroupRatio: 1}
+	// 0.0694444 * 500000 * (0.6*10 + 0.3*2) = 0.0694444*500000*6.6 = 229166.52 → ¥3.3
+	assert.Equal(t, 229166, a.AdjustBillingOnComplete(task, nil))
+}
+
+func TestAdjustBillingContextIRTokens(t *testing.T) {
+	a := &TaskAdaptor{}
+	task := &model.Task{
+		Data: []byte(`{"task":{"id":"1","status":"succeeded","task_type":"h3_context_ir","usage":{"total_tokens":3000,"prompt_tokens":2000,"completion_tokens":1000}}}`),
+	}
+	task.Properties.OriginModelName = "MiniMax-H3-context-ir"
+	task.PrivateData.BillingContext = &model.TaskBillingContext{ModelPrice: 0.0138889, GroupRatio: 1}
+	// (2000×(5.8/7.2) + 1000×(23/7.2)) / 1e6 × 500000 = (1611.11 + 3194.44)/1e6×5e5 = 2402.7 → ¥0.0346
+	assert.Equal(t, 2402, a.AdjustBillingOnComplete(task, nil))
+
+	noTokens := &model.Task{
+		Data: []byte(`{"task":{"id":"1","status":"succeeded","usage":{}}}`),
+	}
+	noTokens.Properties.OriginModelName = "MiniMax-H3-context-ir"
+	noTokens.PrivateData.BillingContext = &model.TaskBillingContext{ModelPrice: 0.0138889, GroupRatio: 1}
+	assert.Equal(t, 0, a.AdjustBillingOnComplete(noTokens, nil))
+}
+
+func TestConvertToContextIRRequest(t *testing.T) {
+	req, err := convertToContextIRRequest(relaycommon.TaskSubmitReq{
+		Model:  "MiniMax-H3-context-ir",
+		Prompt: "一只猫在草地上",
+		Metadata: map[string]interface{}{
+			"duration": 8,
+			"ratio":    "16:9",
+		},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "MiniMax-H3", req.Model)
+	assert.Equal(t, 8, req.Duration)
+	assert.Equal(t, "16:9", req.Ratio)
+	require.Len(t, req.Content, 1)
+
+	_, err = convertToContextIRRequest(relaycommon.TaskSubmitReq{Model: "MiniMax-H3-context-ir"})
+	assert.Error(t, err)
 }
