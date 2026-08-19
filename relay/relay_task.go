@@ -89,7 +89,7 @@ func ResolveOriginTask(c *gin.Context, info *relaycommon.RelayInfo) *dto.TaskErr
 	}
 	info.LockedChannel = ch
 
-	if originTask.ChannelId != info.ChannelId {
+	if originTask.ChannelId != info.GetChannelID() {
 		key, _, opclinkError := ch.GetNextEnabledKey()
 		if opclinkError != nil {
 			return service.TaskErrorWrapper(opclinkError, "channel_no_available_key", opclinkError.StatusCode)
@@ -99,6 +99,10 @@ func ResolveOriginTask(c *gin.Context, info *relaycommon.RelayInfo) *dto.TaskErr
 		common.SetContextKey(c, constant.ContextKeyChannelBaseUrl, ch.GetBaseURL())
 		common.SetContextKey(c, constant.ContextKeyChannelId, originTask.ChannelId)
 
+		// remix 路由不经渠道选择,ChannelMeta 可能尚未初始化
+		if info.ChannelMeta == nil {
+			info.ChannelMeta = &relaycommon.ChannelMeta{}
+		}
 		info.ChannelBaseUrl = ch.GetBaseURL()
 		info.ChannelId = originTask.ChannelId
 		info.ChannelType = ch.Type
