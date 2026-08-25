@@ -16,8 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import assert from 'node:assert/strict'
-import { describe, test } from 'node:test'
+import { describe, expect, test } from 'vitest'
 
 import {
   CHANNEL_TYPE_OPCLINK,
@@ -45,45 +44,40 @@ describe('OPCLink channel', () => {
       (item) => item.value === CHANNEL_TYPE_OPCLINK
     )
 
-    assert.deepEqual(option, {
+    expect(option).toEqual({
       value: CHANNEL_TYPE_OPCLINK,
       label: 'OPCLink',
     })
-    assert.equal(
+    expect(
       CHANNEL_TYPE_OPTIONS.findIndex(
         (item) => item.value === CHANNEL_TYPE_OPCLINK
-      ) + 1,
-      CHANNEL_TYPE_OPTIONS.findIndex((item) => item.value === 58)
-    )
-    assert.equal(MODEL_FETCHABLE_TYPES.has(CHANNEL_TYPE_OPCLINK), true)
-    assert.equal(getChannelTypeIcon(CHANNEL_TYPE_OPCLINK), 'OPCLink')
-    assert.equal(
-      getKeyPromptForType(CHANNEL_TYPE_OPCLINK),
+      ) + 1
+    ).toBe(CHANNEL_TYPE_OPTIONS.findIndex((item) => item.value === 58))
+    expect(MODEL_FETCHABLE_TYPES.has(CHANNEL_TYPE_OPCLINK)).toBe(true)
+    expect(getChannelTypeIcon(CHANNEL_TYPE_OPCLINK)).toBe('OPCLink')
+    expect(getKeyPromptForType(CHANNEL_TYPE_OPCLINK)).toBe(
       'Enter API key for this channel'
     )
-    assert.equal(getChannelTypeConfig(CHANNEL_TYPE_OPCLINK).icon, 'OPCLink')
+    expect(getChannelTypeConfig(CHANNEL_TYPE_OPCLINK).icon).toBe('OPCLink')
   })
 
   test('requires a non-blank Base URL', () => {
     const blankResult = channelFormSchema.safeParse(opclinkForm('  '))
 
-    assert.equal(blankResult.success, false)
+    expect(blankResult.success).toBe(false)
     if (!blankResult.success) {
-      assert.equal(
+      expect(
         blankResult.error.issues.some(
           (issue) =>
             issue.path[0] === 'base_url' &&
             issue.message === 'Base URL is required for this channel type'
-        ),
-        true
-      )
+        )
+      ).toBe(true)
     }
 
-    assert.equal(
-      channelFormSchema.safeParse(opclinkForm('https://opclink.example'))
-        .success,
-      true
-    )
+    expect(
+      channelFormSchema.safeParse(opclinkForm('https://opclink.example')).success
+    ).toBe(true)
   })
 
   test('keeps Sub2API Base URL validation unchanged', () => {
@@ -92,6 +86,6 @@ describe('OPCLink channel', () => {
       type: 59,
     })
 
-    assert.equal(result.success, true)
+    expect(result.success).toBe(true)
   })
 })

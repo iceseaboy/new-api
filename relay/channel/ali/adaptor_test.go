@@ -2,11 +2,13 @@ package ali
 
 import (
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/QuantumNous/opclink/common"
 	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	"github.com/QuantumNous/opclink/relay/constant"
 	relayhelper "github.com/QuantumNous/opclink/relay/helper"
 	"github.com/QuantumNous/opclink/relaykit/dto"
 	"github.com/gin-gonic/gin"
@@ -161,4 +163,35 @@ func TestAliImageResolutionRatio(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMappedAliImageModelUsesUpstreamProtocol(t *testing.T) {
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/images/generations", nil)
+
+	info := &relaycommon.RelayInfo{
+		RelayMode:       constant.RelayModeImagesGenerations,
+		OriginModelName: "customer-image-model",
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelBaseUrl:    "https://dashscope.aliyuncs.com",
+			UpstreamModelName: "qwen-image-3.0-pro",
+		},
+	}
+
+	adaptor := &Adaptor{}
+	url, err := adaptor.GetRequestURL(info)
+	require.NoError(t, err)
+	assert.Equal(t, "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation", url)
+
+	header := http.Header{}
+	require.NoError(t, adaptor.SetupRequestHeader(c, &header, info))
+	assert.Empty(t, header.Get("X-DashScope-Async"))
+
+	converted, err := adaptor.ConvertImageRequest(c, info, dto.ImageRequest{
+		Model:  info.UpstreamModelName,
+		Prompt: "poster",
+	})
+	require.NoError(t, err)
+	assert.True(t, adaptor.IsSyncImageModel)
+	assert.IsType(t, &AliImageRequest{}, converted)
 }
