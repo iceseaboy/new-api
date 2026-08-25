@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	kitutil "github.com/QuantumNous/opclink/relaykit/relayconvert/kitutil"
+	kitutil "github.com/QuantumNous/new-api/relaykit/relayconvert/kitutil"
 )
 
 type OpenAIError struct {
@@ -26,7 +26,7 @@ type ClaudeError struct {
 type ErrorType string
 
 const (
-	ErrorTypeOPCLinkError     ErrorType = "opclink_error"
+	ErrorTypeNewAPIError     ErrorType = "new_api_error"
 	ErrorTypeOpenAIError     ErrorType = "openai_error"
 	ErrorTypeClaudeError     ErrorType = "claude_error"
 	ErrorTypeMidjourneyError ErrorType = "midjourney_error"
@@ -42,7 +42,7 @@ const (
 	ErrorCodeSensitiveWordsDetected ErrorCode = "sensitive_words_detected"
 	ErrorCodeViolationFeeGrokCSAM   ErrorCode = "violation_fee.grok.csam"
 
-	// opclink error
+	// new api error
 	ErrorCodeCountTokenFailed   ErrorCode = "count_token_failed"
 	ErrorCodeModelPriceError    ErrorCode = "model_price_error"
 	ErrorCodeInvalidApiType     ErrorCode = "invalid_api_type"
@@ -87,7 +87,7 @@ const (
 	ErrorCodePreConsumeTokenQuotaFailed ErrorCode = "pre_consume_token_quota_failed"
 )
 
-type OPCLinkError struct {
+type NewAPIError struct {
 	Err            error
 	RelayError     any
 	skipRetry      bool
@@ -98,29 +98,29 @@ type OPCLinkError struct {
 	Metadata       json.RawMessage
 }
 
-// Unwrap enables errors.Is / errors.As to work with OPCLinkError by exposing the underlying error.
-func (e *OPCLinkError) Unwrap() error {
+// Unwrap enables errors.Is / errors.As to work with NewAPIError by exposing the underlying error.
+func (e *NewAPIError) Unwrap() error {
 	if e == nil {
 		return nil
 	}
 	return e.Err
 }
 
-func (e *OPCLinkError) GetErrorCode() ErrorCode {
+func (e *NewAPIError) GetErrorCode() ErrorCode {
 	if e == nil {
 		return ""
 	}
 	return e.errorCode
 }
 
-func (e *OPCLinkError) GetErrorType() ErrorType {
+func (e *NewAPIError) GetErrorType() ErrorType {
 	if e == nil {
 		return ""
 	}
 	return e.errorType
 }
 
-func (e *OPCLinkError) Error() string {
+func (e *NewAPIError) Error() string {
 	if e == nil {
 		return ""
 	}
@@ -131,7 +131,7 @@ func (e *OPCLinkError) Error() string {
 	return e.Err.Error()
 }
 
-func (e *OPCLinkError) ErrorWithStatusCode() string {
+func (e *NewAPIError) ErrorWithStatusCode() string {
 	if e == nil {
 		return ""
 	}
@@ -145,7 +145,7 @@ func (e *OPCLinkError) ErrorWithStatusCode() string {
 	return fmt.Sprintf("status_code=%d, %s", e.StatusCode, msg)
 }
 
-func (e *OPCLinkError) MaskSensitiveError() string {
+func (e *NewAPIError) MaskSensitiveError() string {
 	if e == nil {
 		return ""
 	}
@@ -159,7 +159,7 @@ func (e *OPCLinkError) MaskSensitiveError() string {
 	return kitutil.MaskSensitiveInfo(errStr)
 }
 
-func (e *OPCLinkError) MaskSensitiveErrorWithStatusCode() string {
+func (e *NewAPIError) MaskSensitiveErrorWithStatusCode() string {
 	if e == nil {
 		return ""
 	}
@@ -173,11 +173,11 @@ func (e *OPCLinkError) MaskSensitiveErrorWithStatusCode() string {
 	return fmt.Sprintf("status_code=%d, %s", e.StatusCode, msg)
 }
 
-func (e *OPCLinkError) SetMessage(message string) {
+func (e *NewAPIError) SetMessage(message string) {
 	e.Err = errors.New(message)
 }
 
-func (e *OPCLinkError) ToOpenAIError() OpenAIError {
+func (e *NewAPIError) ToOpenAIError() OpenAIError {
 	var result OpenAIError
 	switch e.errorType {
 	case ErrorTypeOpenAIError:
@@ -210,7 +210,7 @@ func (e *OPCLinkError) ToOpenAIError() OpenAIError {
 	return result
 }
 
-func (e *OPCLinkError) ToClaudeError() ClaudeError {
+func (e *NewAPIError) ToClaudeError() ClaudeError {
 	var result ClaudeError
 	switch e.errorType {
 	case ErrorTypeOpenAIError:
@@ -239,10 +239,10 @@ func (e *OPCLinkError) ToClaudeError() ClaudeError {
 	return result
 }
 
-type OPCLinkErrorOptions func(*OPCLinkError)
+type NewAPIErrorOptions func(*NewAPIError)
 
-func NewError(err error, errorCode ErrorCode, ops ...OPCLinkErrorOptions) *OPCLinkError {
-	var newErr *OPCLinkError
+func NewError(err error, errorCode ErrorCode, ops ...NewAPIErrorOptions) *NewAPIError {
+	var newErr *NewAPIError
 	// 保留深层传递的 new err
 	if errors.As(err, &newErr) {
 		for _, op := range ops {
@@ -250,10 +250,10 @@ func NewError(err error, errorCode ErrorCode, ops ...OPCLinkErrorOptions) *OPCLi
 		}
 		return newErr
 	}
-	e := &OPCLinkError{
+	e := &NewAPIError{
 		Err:        err,
 		RelayError: nil,
-		errorType:  ErrorTypeOPCLinkError,
+		errorType:  ErrorTypeNewAPIError,
 		StatusCode: http.StatusInternalServerError,
 		errorCode:  errorCode,
 	}
@@ -263,8 +263,8 @@ func NewError(err error, errorCode ErrorCode, ops ...OPCLinkErrorOptions) *OPCLi
 	return e
 }
 
-func NewOpenAIError(err error, errorCode ErrorCode, statusCode int, ops ...OPCLinkErrorOptions) *OPCLinkError {
-	var newErr *OPCLinkError
+func NewOpenAIError(err error, errorCode ErrorCode, statusCode int, ops ...NewAPIErrorOptions) *NewAPIError {
+	var newErr *NewAPIError
 	// 保留深层传递的 new err
 	if errors.As(err, &newErr) {
 		if newErr.RelayError == nil {
@@ -288,7 +288,7 @@ func NewOpenAIError(err error, errorCode ErrorCode, statusCode int, ops ...OPCLi
 	return WithOpenAIError(openaiError, statusCode, ops...)
 }
 
-func InitOpenAIError(errorCode ErrorCode, statusCode int, ops ...OPCLinkErrorOptions) *OPCLinkError {
+func InitOpenAIError(errorCode ErrorCode, statusCode int, ops ...NewAPIErrorOptions) *NewAPIError {
 	openaiError := OpenAIError{
 		Type: string(errorCode),
 		Code: errorCode,
@@ -296,14 +296,14 @@ func InitOpenAIError(errorCode ErrorCode, statusCode int, ops ...OPCLinkErrorOpt
 	return WithOpenAIError(openaiError, statusCode, ops...)
 }
 
-func NewErrorWithStatusCode(err error, errorCode ErrorCode, statusCode int, ops ...OPCLinkErrorOptions) *OPCLinkError {
-	e := &OPCLinkError{
+func NewErrorWithStatusCode(err error, errorCode ErrorCode, statusCode int, ops ...NewAPIErrorOptions) *NewAPIError {
+	e := &NewAPIError{
 		Err: err,
 		RelayError: OpenAIError{
 			Message: err.Error(),
 			Type:    string(errorCode),
 		},
-		errorType:  ErrorTypeOPCLinkError,
+		errorType:  ErrorTypeNewAPIError,
 		StatusCode: statusCode,
 		errorCode:  errorCode,
 	}
@@ -314,7 +314,7 @@ func NewErrorWithStatusCode(err error, errorCode ErrorCode, statusCode int, ops 
 	return e
 }
 
-func WithOpenAIError(openAIError OpenAIError, statusCode int, ops ...OPCLinkErrorOptions) *OPCLinkError {
+func WithOpenAIError(openAIError OpenAIError, statusCode int, ops ...NewAPIErrorOptions) *NewAPIError {
 	code, ok := openAIError.Code.(string)
 	if !ok {
 		if openAIError.Code != nil {
@@ -326,7 +326,7 @@ func WithOpenAIError(openAIError OpenAIError, statusCode int, ops ...OPCLinkErro
 	if openAIError.Type == "" {
 		openAIError.Type = "upstream_error"
 	}
-	e := &OPCLinkError{
+	e := &NewAPIError{
 		RelayError: openAIError,
 		errorType:  ErrorTypeOpenAIError,
 		StatusCode: statusCode,
@@ -346,11 +346,11 @@ func WithOpenAIError(openAIError OpenAIError, statusCode int, ops ...OPCLinkErro
 	return e
 }
 
-func WithClaudeError(claudeError ClaudeError, statusCode int, ops ...OPCLinkErrorOptions) *OPCLinkError {
+func WithClaudeError(claudeError ClaudeError, statusCode int, ops ...NewAPIErrorOptions) *NewAPIError {
 	if claudeError.Type == "" {
 		claudeError.Type = "upstream_error"
 	}
-	e := &OPCLinkError{
+	e := &NewAPIError{
 		RelayError: claudeError,
 		errorType:  ErrorTypeClaudeError,
 		StatusCode: statusCode,
@@ -363,14 +363,14 @@ func WithClaudeError(claudeError ClaudeError, statusCode int, ops ...OPCLinkErro
 	return e
 }
 
-func IsChannelError(err *OPCLinkError) bool {
+func IsChannelError(err *NewAPIError) bool {
 	if err == nil {
 		return false
 	}
 	return strings.HasPrefix(string(err.errorCode), "channel:")
 }
 
-func IsSkipRetryError(err *OPCLinkError) bool {
+func IsSkipRetryError(err *NewAPIError) bool {
 	if err == nil {
 		return false
 	}
@@ -378,26 +378,26 @@ func IsSkipRetryError(err *OPCLinkError) bool {
 	return err.skipRetry
 }
 
-func ErrOptionWithSkipRetry() OPCLinkErrorOptions {
-	return func(e *OPCLinkError) {
+func ErrOptionWithSkipRetry() NewAPIErrorOptions {
+	return func(e *NewAPIError) {
 		e.skipRetry = true
 	}
 }
 
-func ErrOptionWithNoRecordErrorLog() OPCLinkErrorOptions {
-	return func(e *OPCLinkError) {
+func ErrOptionWithNoRecordErrorLog() NewAPIErrorOptions {
+	return func(e *NewAPIError) {
 		e.recordErrorLog = kitutil.GetPointer(false)
 	}
 }
 
-func ErrOptionWithStatusCode(statusCode int) OPCLinkErrorOptions {
-	return func(e *OPCLinkError) {
+func ErrOptionWithStatusCode(statusCode int) NewAPIErrorOptions {
+	return func(e *NewAPIError) {
 		e.StatusCode = statusCode
 	}
 }
 
-func ErrOptionWithHideErrMsg(replaceStr string) OPCLinkErrorOptions {
-	return func(e *OPCLinkError) {
+func ErrOptionWithHideErrMsg(replaceStr string) NewAPIErrorOptions {
+	return func(e *NewAPIError) {
 		if kitutil.Debug.Load() {
 			fmt.Printf("ErrOptionWithHideErrMsg: %s, origin error: %s", replaceStr, e.Err)
 		}
@@ -405,7 +405,7 @@ func ErrOptionWithHideErrMsg(replaceStr string) OPCLinkErrorOptions {
 	}
 }
 
-func IsRecordErrorLog(e *OPCLinkError) bool {
+func IsRecordErrorLog(e *NewAPIError) bool {
 	if e == nil {
 		return false
 	}

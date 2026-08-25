@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/QuantumNous/opclink/relaykit/dto"
-	"github.com/QuantumNous/opclink/relaykit/relayconvert/convmeta"
-	sharedclaude "github.com/QuantumNous/opclink/relaykit/relayconvert/internal/shared/claude"
-	kitutil "github.com/QuantumNous/opclink/relaykit/relayconvert/kitutil"
+	"github.com/QuantumNous/new-api/relaykit/dto"
+	"github.com/QuantumNous/new-api/relaykit/relayconvert/convmeta"
+	sharedclaude "github.com/QuantumNous/new-api/relaykit/relayconvert/internal/shared/claude"
+	kitutil "github.com/QuantumNous/new-api/relaykit/relayconvert/kitutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

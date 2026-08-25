@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/QuantumNous/opclink/common"
-	"github.com/QuantumNous/opclink/types"
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/types"
 )
 
 // UserModelRatio grants a specific user a per-model price multiplier without

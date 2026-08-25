@@ -1,6 +1,6 @@
 package billingexpr
 
-import "github.com/QuantumNous/opclink/common"
+import "github.com/QuantumNous/new-api/common"
 
 // quotaConversion converts raw expression output to quota based on the
 // expression version. This is the central dispatch point for future versions

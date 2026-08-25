@@ -3,7 +3,7 @@ package common
 import (
 	"io"
 
-	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/new-api/common"
 )
 
 // NewOutboundJSONBody wraps the already-marshaled upstream request body into a

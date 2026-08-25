@@ -320,7 +320,7 @@ async function performRefreshWithBrowserLock(
       return runRefresh(refreshEpoch)
     }
     return navigator.locks.request(
-      'opclink:auth-refresh',
+      'new-api:auth-refresh',
       { mode: 'exclusive' },
       () => runRefresh(refreshEpoch)
     )

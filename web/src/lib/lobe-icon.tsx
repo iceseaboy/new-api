@@ -33,7 +33,7 @@ import { Logo } from '@/assets/logo'
 
 const CUSTOM_ICONS: Record<string, React.ComponentType<{ size?: number }>> = {
   Sub2API: IconSub2api,
-  OPCLink: ({ size = 20 }) => (
+  NewAPI: ({ size = 20 }) => (
     <Logo style={{ width: size, height: size }} />
   ),
 }

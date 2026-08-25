@@ -11,14 +11,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/QuantumNous/opclink/common"
-	"github.com/QuantumNous/opclink/constant"
-	"github.com/QuantumNous/opclink/dto"
-	"github.com/QuantumNous/opclink/logger"
-	"github.com/QuantumNous/opclink/model"
-	relaycommon "github.com/QuantumNous/opclink/relay/common"
-	relayconstant "github.com/QuantumNous/opclink/relay/constant"
-	"github.com/QuantumNous/opclink/setting"
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/dto"
+	"github.com/QuantumNous/new-api/logger"
+	"github.com/QuantumNous/new-api/model"
+	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	relayconstant "github.com/QuantumNous/new-api/relay/constant"
+	"github.com/QuantumNous/new-api/setting"
 
 	"github.com/gin-gonic/gin"
 )

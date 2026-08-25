@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/new-api/common"
 )
 
 const (
@@ -62,7 +62,7 @@ func fetchLatestCodexClientVersion(ctx context.Context, client *http.Client, rel
 		return "", err
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("User-Agent", "opclink")
+	req.Header.Set("User-Agent", "new-api")
 
 	resp, err := client.Do(req)
 	if err != nil {

@@ -161,7 +161,7 @@ export function resolveChatUrl({
 
   if (url.includes('{cherryConfig}')) {
     const payload = {
-      id: 'opclink',
+      id: 'new-api',
       baseUrl: safeServerAddress,
       apiKey: safeApiKey,
     }
@@ -171,7 +171,7 @@ export function resolveChatUrl({
 
   if (url.includes('{aionuiConfig}')) {
     const payload = {
-      platform: 'opclink',
+      platform: 'new-api',
       baseUrl: safeServerAddress,
       apiKey: safeApiKey,
     }
@@ -181,7 +181,7 @@ export function resolveChatUrl({
 
   if (url.includes('{deepchatConfig}')) {
     const payload = {
-      id: 'opclink',
+      id: 'new-api',
       baseUrl: safeServerAddress,
       apiKey: safeApiKey,
     }

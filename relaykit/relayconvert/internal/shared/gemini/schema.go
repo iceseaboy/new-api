@@ -3,7 +3,7 @@ package gemini
 import (
 	"strings"
 
-	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/new-api/relaykit/dto"
 )
 
 var geminiOpenAPISchemaAllowedFields = map[string]struct{}{

@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/QuantumNous/opclink/common"
-	"github.com/QuantumNous/opclink/relaykit/types"
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/samber/lo"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -99,7 +99,7 @@ func AsParamOverrideReturnError(err error) (*ParamOverrideReturnError, bool) {
 	return nil, false
 }
 
-func OPCLinkErrorFromParamOverride(err *ParamOverrideReturnError) *types.OPCLinkError {
+func NewAPIErrorFromParamOverride(err *ParamOverrideReturnError) *types.NewAPIError {
 	if err == nil {
 		return types.NewError(
 			errors.New("param override return error is nil"),
@@ -128,7 +128,7 @@ func OPCLinkErrorFromParamOverride(err *ParamOverrideReturnError) *types.OPCLink
 		message = "request blocked by param override"
 	}
 
-	opts := make([]types.OPCLinkErrorOptions, 0, 1)
+	opts := make([]types.NewAPIErrorOptions, 0, 1)
 	if err.SkipRetry {
 		opts = append(opts, types.ErrOptionWithSkipRetry())
 	}

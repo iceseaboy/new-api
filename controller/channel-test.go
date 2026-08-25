@@ -15,20 +15,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/QuantumNous/opclink/common"
-	"github.com/QuantumNous/opclink/constant"
-	"github.com/QuantumNous/opclink/middleware"
-	"github.com/QuantumNous/opclink/model"
-	"github.com/QuantumNous/opclink/pkg/billingexpr"
-	"github.com/QuantumNous/opclink/relay"
-	relaycommon "github.com/QuantumNous/opclink/relay/common"
-	relayconstant "github.com/QuantumNous/opclink/relay/constant"
-	"github.com/QuantumNous/opclink/relay/helper"
-	"github.com/QuantumNous/opclink/relaykit/dto"
-	"github.com/QuantumNous/opclink/relaykit/types"
-	"github.com/QuantumNous/opclink/service"
-	"github.com/QuantumNous/opclink/setting/operation_setting"
-	hosttypes "github.com/QuantumNous/opclink/types"
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/middleware"
+	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/billingexpr"
+	"github.com/QuantumNous/new-api/relay"
+	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	relayconstant "github.com/QuantumNous/new-api/relay/constant"
+	"github.com/QuantumNous/new-api/relay/helper"
+	"github.com/QuantumNous/new-api/relaykit/dto"
+	"github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
+	hosttypes "github.com/QuantumNous/new-api/types"
 
 	"github.com/samber/lo"
 	"github.com/tidwall/gjson"
@@ -39,7 +39,7 @@ import (
 type testResult struct {
 	context     *gin.Context
 	localErr    error
-	opclinkError *types.OPCLinkError
+	newAPIError *types.NewAPIError
 }
 
 func normalizeChannelTestEndpoint(channel *model.Channel, endpointType string) string {
@@ -155,7 +155,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 	if err != nil {
 		return testResult{
 			localErr:    err,
-			opclinkError: nil,
+			newAPIError: nil,
 		}
 	}
 	cache.WriteContext(c)
@@ -168,12 +168,12 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 	group, _ := model.GetUserGroup(testUserID, false)
 	c.Set("group", group)
 
-	opclinkError := middleware.SetupContextForSelectedChannel(c, channel, testModel)
-	if opclinkError != nil {
+	newAPIError := middleware.SetupContextForSelectedChannel(c, channel, testModel)
+	if newAPIError != nil {
 		return testResult{
 			context:     c,
-			localErr:    opclinkError,
-			opclinkError: opclinkError,
+			localErr:    newAPIError,
+			newAPIError: newAPIError,
 		}
 	}
 
@@ -235,7 +235,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 		return testResult{
 			context:     c,
 			localErr:    err,
-			opclinkError: types.NewError(err, types.ErrorCodeGenRelayInfoFailed),
+			newAPIError: types.NewError(err, types.ErrorCodeGenRelayInfoFailed),
 		}
 	}
 
@@ -247,7 +247,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 		return testResult{
 			context:     c,
 			localErr:    err,
-			opclinkError: types.NewError(err, types.ErrorCodeJsonMarshalFailed),
+			newAPIError: types.NewError(err, types.ErrorCodeJsonMarshalFailed),
 		}
 	}
 
@@ -256,7 +256,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 		return testResult{
 			context:     c,
 			localErr:    err,
-			opclinkError: types.NewError(err, types.ErrorCodeChannelModelMappedError),
+			newAPIError: types.NewError(err, types.ErrorCodeChannelModelMappedError),
 		}
 	}
 
@@ -270,7 +270,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 		return testResult{
 			context:     c,
 			localErr:    fmt.Errorf("responses compaction test is not supported for api type %d", apiType),
-			opclinkError: types.NewError(fmt.Errorf("unsupported api type: %d", apiType), types.ErrorCodeInvalidApiType),
+			newAPIError: types.NewError(fmt.Errorf("unsupported api type: %d", apiType), types.ErrorCodeInvalidApiType),
 		}
 	}
 	adaptor := relay.GetAdaptor(apiType)
@@ -278,7 +278,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 		return testResult{
 			context:     c,
 			localErr:    fmt.Errorf("invalid api type: %d, adaptor is nil", apiType),
-			opclinkError: types.NewError(fmt.Errorf("invalid api type: %d, adaptor is nil", apiType), types.ErrorCodeInvalidApiType),
+			newAPIError: types.NewError(fmt.Errorf("invalid api type: %d, adaptor is nil", apiType), types.ErrorCodeInvalidApiType),
 		}
 	}
 
@@ -292,7 +292,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 		return testResult{
 			context:     c,
 			localErr:    err,
-			opclinkError: types.NewError(err, types.ErrorCodeModelPriceError, types.ErrOptionWithStatusCode(http.StatusBadRequest)),
+			newAPIError: types.NewError(err, types.ErrorCodeModelPriceError, types.ErrOptionWithStatusCode(http.StatusBadRequest)),
 		}
 	}
 
@@ -309,7 +309,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 			return testResult{
 				context:     c,
 				localErr:    errors.New("invalid embedding request type"),
-				opclinkError: types.NewError(errors.New("invalid embedding request type"), types.ErrorCodeConvertRequestFailed),
+				newAPIError: types.NewError(errors.New("invalid embedding request type"), types.ErrorCodeConvertRequestFailed),
 			}
 		}
 	case relayconstant.RelayModeImagesGenerations:
@@ -320,7 +320,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 			return testResult{
 				context:     c,
 				localErr:    errors.New("invalid image request type"),
-				opclinkError: types.NewError(errors.New("invalid image request type"), types.ErrorCodeConvertRequestFailed),
+				newAPIError: types.NewError(errors.New("invalid image request type"), types.ErrorCodeConvertRequestFailed),
 			}
 		}
 	case relayconstant.RelayModeRerank:
@@ -331,7 +331,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 			return testResult{
 				context:     c,
 				localErr:    errors.New("invalid rerank request type"),
-				opclinkError: types.NewError(errors.New("invalid rerank request type"), types.ErrorCodeConvertRequestFailed),
+				newAPIError: types.NewError(errors.New("invalid rerank request type"), types.ErrorCodeConvertRequestFailed),
 			}
 		}
 	case relayconstant.RelayModeResponses:
@@ -342,7 +342,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 			return testResult{
 				context:     c,
 				localErr:    errors.New("invalid response request type"),
-				opclinkError: types.NewError(errors.New("invalid response request type"), types.ErrorCodeConvertRequestFailed),
+				newAPIError: types.NewError(errors.New("invalid response request type"), types.ErrorCodeConvertRequestFailed),
 			}
 		}
 	case relayconstant.RelayModeResponsesCompact:
@@ -361,7 +361,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 			return testResult{
 				context:     c,
 				localErr:    errors.New("invalid response compaction request type"),
-				opclinkError: types.NewError(errors.New("invalid response compaction request type"), types.ErrorCodeConvertRequestFailed),
+				newAPIError: types.NewError(errors.New("invalid response compaction request type"), types.ErrorCodeConvertRequestFailed),
 			}
 		}
 	default:
@@ -376,7 +376,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 			return testResult{
 				context:     c,
 				localErr:    errors.New("invalid chat request type"),
-				opclinkError: types.NewError(errors.New("invalid chat request type"), types.ErrorCodeConvertRequestFailed),
+				newAPIError: types.NewError(errors.New("invalid chat request type"), types.ErrorCodeConvertRequestFailed),
 			}
 		}
 	}
@@ -385,7 +385,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 		return testResult{
 			context:     c,
 			localErr:    err,
-			opclinkError: types.NewError(err, types.ErrorCodeConvertRequestFailed),
+			newAPIError: types.NewError(err, types.ErrorCodeConvertRequestFailed),
 		}
 	}
 	jsonData, err := common.Marshal(convertedRequest)
@@ -393,7 +393,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 		return testResult{
 			context:     c,
 			localErr:    err,
-			opclinkError: types.NewError(err, types.ErrorCodeJsonMarshalFailed),
+			newAPIError: types.NewError(err, types.ErrorCodeJsonMarshalFailed),
 		}
 	}
 
@@ -402,7 +402,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 	//	return testResult{
 	//		context:     c,
 	//		localErr:    err,
-	//		opclinkError: types.NewError(err, types.ErrorCodeConvertRequestFailed),
+	//		newAPIError: types.NewError(err, types.ErrorCodeConvertRequestFailed),
 	//	}
 	//}
 
@@ -413,13 +413,13 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 				return testResult{
 					context:     c,
 					localErr:    fixedErr,
-					opclinkError: relaycommon.OPCLinkErrorFromParamOverride(fixedErr),
+					newAPIError: relaycommon.NewAPIErrorFromParamOverride(fixedErr),
 				}
 			}
 			return testResult{
 				context:     c,
 				localErr:    err,
-				opclinkError: types.NewError(err, types.ErrorCodeChannelParamOverrideInvalid),
+				newAPIError: types.NewError(err, types.ErrorCodeChannelParamOverrideInvalid),
 			}
 		}
 	}
@@ -431,7 +431,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 		return testResult{
 			context:     c,
 			localErr:    err,
-			opclinkError: types.NewOpenAIError(err, types.ErrorCodeDoRequestFailed, http.StatusInternalServerError),
+			newAPIError: types.NewOpenAIError(err, types.ErrorCodeDoRequestFailed, http.StatusInternalServerError),
 		}
 	}
 	var httpResp *http.Response
@@ -452,7 +452,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 			return testResult{
 				context:     c,
 				localErr:    err,
-				opclinkError: types.NewOpenAIError(err, types.ErrorCodeBadResponse, http.StatusInternalServerError),
+				newAPIError: types.NewOpenAIError(err, types.ErrorCodeBadResponse, http.StatusInternalServerError),
 			}
 		}
 	}
@@ -461,7 +461,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 		return testResult{
 			context:     c,
 			localErr:    respErr,
-			opclinkError: respErr,
+			newAPIError: respErr,
 		}
 	}
 	usage, usageErr := coerceTestUsage(usageA, isStream, info.GetEstimatePromptTokens())
@@ -469,7 +469,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 		return testResult{
 			context:     c,
 			localErr:    usageErr,
-			opclinkError: types.NewOpenAIError(usageErr, types.ErrorCodeBadResponseBody, http.StatusInternalServerError),
+			newAPIError: types.NewOpenAIError(usageErr, types.ErrorCodeBadResponseBody, http.StatusInternalServerError),
 		}
 	}
 	result := w.Result()
@@ -478,14 +478,14 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 		return testResult{
 			context:     c,
 			localErr:    err,
-			opclinkError: types.NewOpenAIError(err, types.ErrorCodeReadResponseBodyFailed, http.StatusInternalServerError),
+			newAPIError: types.NewOpenAIError(err, types.ErrorCodeReadResponseBodyFailed, http.StatusInternalServerError),
 		}
 	}
 	if bodyErr := validateTestResponseBody(respBody, isStream); bodyErr != nil {
 		return testResult{
 			context:     c,
 			localErr:    bodyErr,
-			opclinkError: types.NewOpenAIError(bodyErr, types.ErrorCodeBadResponseBody, http.StatusInternalServerError),
+			newAPIError: types.NewOpenAIError(bodyErr, types.ErrorCodeBadResponseBody, http.StatusInternalServerError),
 		}
 	}
 	info.SetEstimatePromptTokens(usage.PromptTokens)
@@ -512,7 +512,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 	return testResult{
 		context:     c,
 		localErr:    nil,
-		opclinkError: nil,
+		newAPIError: nil,
 	}
 }
 
@@ -873,8 +873,8 @@ func TestChannel(c *gin.Context) {
 			"message": result.localErr.Error(),
 			"time":    0.0,
 		}
-		if result.opclinkError != nil {
-			resp["error_code"] = result.opclinkError.GetErrorCode()
+		if result.newAPIError != nil {
+			resp["error_code"] = result.newAPIError.GetErrorCode()
 		}
 		c.JSON(http.StatusOK, resp)
 		return
@@ -883,12 +883,12 @@ func TestChannel(c *gin.Context) {
 	milliseconds := tok.Sub(tik).Milliseconds()
 	go channel.UpdateResponseTime(milliseconds)
 	consumedTime := float64(milliseconds) / 1000.0
-	if result.opclinkError != nil {
+	if result.newAPIError != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success":    false,
-			"message":    result.opclinkError.Error(),
+			"message":    result.newAPIError.Error(),
 			"time":       consumedTime,
-			"error_code": result.opclinkError.GetErrorCode(),
+			"error_code": result.newAPIError.GetErrorCode(),
 		})
 		return
 	}
@@ -922,31 +922,31 @@ func testChannelForHealthCheck(ctx context.Context, channel *model.Channel, test
 	summary.Tested++
 
 	shouldBanChannel := false
-	opclinkError := result.opclinkError
-	if opclinkError != nil {
-		shouldBanChannel = service.ShouldDisableChannel(result.opclinkError)
+	newAPIError := result.newAPIError
+	if newAPIError != nil {
+		shouldBanChannel = service.ShouldDisableChannel(result.newAPIError)
 	}
 
 	if common.AutomaticDisableChannelEnabled && !shouldBanChannel {
 		if milliseconds > disableThreshold {
 			err := fmt.Errorf("响应时间 %.2fs 超过阈值 %.2fs", float64(milliseconds)/1000.0, float64(disableThreshold)/1000.0)
-			opclinkError = types.NewOpenAIError(err, types.ErrorCodeChannelResponseTimeExceeded, http.StatusRequestTimeout)
+			newAPIError = types.NewOpenAIError(err, types.ErrorCodeChannelResponseTimeExceeded, http.StatusRequestTimeout)
 			shouldBanChannel = true
 		}
 	}
 
-	if opclinkError == nil {
+	if newAPIError == nil {
 		summary.Succeeded++
 	} else {
 		summary.Failed++
 	}
 
 	if allowDisable && isChannelEnabled && shouldBanChannel && channel.GetAutoBan() {
-		processChannelError(result.context, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(result.context, constant.ContextKeyChannelKey), channel.GetAutoBan()), opclinkError)
+		processChannelError(result.context, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(result.context, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
 		summary.Disabled++
 	}
 
-	if result.localErr == nil && !isChannelEnabled && service.ShouldEnableChannel(opclinkError, channel.Status) {
+	if result.localErr == nil && !isChannelEnabled && service.ShouldEnableChannel(newAPIError, channel.Status) {
 		service.EnableChannel(channel.Id, common.GetContextKeyString(result.context, constant.ContextKeyChannelKey), channel.Name)
 		summary.Enabled++
 	}

@@ -20,7 +20,7 @@ import { z } from 'zod'
 
 import {
   CLAUDE_FIELD_PASSTHROUGH_TYPES,
-  CHANNEL_TYPE_OPCLINK,
+  CHANNEL_TYPE_NEW_API,
   CHANNEL_STATUS,
   ERROR_MESSAGES,
   FIELD_PASSTHROUGH_TYPES,
@@ -285,7 +285,7 @@ export const channelFormSchema = z
   })
   .superRefine((data, ctx) => {
     if (
-      [3, 8, 36, 45, CHANNEL_TYPE_OPCLINK].includes(data.type) &&
+      [3, 8, 36, 45, CHANNEL_TYPE_NEW_API].includes(data.type) &&
       !data.base_url?.trim()
     ) {
       addRequiredIssue(
@@ -674,9 +674,9 @@ function buildSettingsJSON(formData: ChannelFormValues): string {
   }
 
   // Field passthrough controls:
-  // - OpenAI, Anthropic, Codex, and OPCLink: allow_service_tier
-  // - OpenAI request fields: OpenAI, Codex, and OPCLink
-  // - Claude request fields: Anthropic and OPCLink
+  // - OpenAI, Anthropic, Codex, and New API: allow_service_tier
+  // - OpenAI request fields: OpenAI, Codex, and New API
+  // - Claude request fields: Anthropic and New API
   if (FIELD_PASSTHROUGH_TYPES.has(formData.type)) {
     settingsObj.allow_service_tier = formData.allow_service_tier === true
   } else if ('allow_service_tier' in settingsObj) {

@@ -1,4 +1,4 @@
-module github.com/QuantumNous/opclink/relaykit
+module github.com/QuantumNous/new-api/relaykit
 
 go 1.25.1
 

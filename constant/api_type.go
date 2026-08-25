@@ -38,6 +38,6 @@ const (
 	APITypeCodex
 	APITypeAdvancedCustom
 	APITypeSub2API
-	APITypeOPCLink
+	APITypeNewAPI
 	APITypeDummy // this one is only for count, do not add any channel after this
 )

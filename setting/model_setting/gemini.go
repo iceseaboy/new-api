@@ -3,8 +3,8 @@ package model_setting
 import (
 	"fmt"
 
-	"github.com/QuantumNous/opclink/common"
-	"github.com/QuantumNous/opclink/setting/config"
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/setting/config"
 )
 
 const defaultGeminiSafetySetting = "OFF"

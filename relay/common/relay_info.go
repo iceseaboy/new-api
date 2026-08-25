@@ -8,15 +8,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/QuantumNous/opclink/common"
-	"github.com/QuantumNous/opclink/constant"
-	"github.com/QuantumNous/opclink/pkg/billingexpr"
-	relayconstant "github.com/QuantumNous/opclink/relay/constant"
-	"github.com/QuantumNous/opclink/relaykit/dto"
-	"github.com/QuantumNous/opclink/relaykit/relayconvert/convmeta"
-	"github.com/QuantumNous/opclink/relaykit/types"
-	"github.com/QuantumNous/opclink/setting/model_setting"
-	hosttypes "github.com/QuantumNous/opclink/types"
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/pkg/billingexpr"
+	relayconstant "github.com/QuantumNous/new-api/relay/constant"
+	"github.com/QuantumNous/new-api/relaykit/dto"
+	"github.com/QuantumNous/new-api/relaykit/relayconvert/convmeta"
+	"github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/QuantumNous/new-api/setting/model_setting"
+	hosttypes "github.com/QuantumNous/new-api/types"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -144,7 +144,7 @@ type RelayInfo struct {
 	IsClaudeBetaQuery                     bool // /v1/messages?beta=true
 	IsChannelTest                         bool // channel test request
 	RetryIndex                            int
-	LastError                             *types.OPCLinkError
+	LastError                             *types.NewAPIError
 	RuntimeHeadersOverride                map[string]interface{}
 	UseRuntimeHeadersOverride             bool
 	ParamOverrideAudit                    []string
@@ -344,7 +344,7 @@ var streamSupportedChannels = map[int]bool{
 	constant.ChannelTypeSiliconFlow:    true,
 	constant.ChannelTypeAdvancedCustom: true,
 	constant.ChannelTypeSub2API:        true,
-	constant.ChannelTypeOPCLink:         true,
+	constant.ChannelTypeNewAPI:         true,
 	constant.ChannelTypeTencent:        true,
 }
 

@@ -6,15 +6,15 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/QuantumNous/opclink/common"
-	"github.com/QuantumNous/opclink/constant"
-	"github.com/QuantumNous/opclink/relay/channel"
-	openaichannel "github.com/QuantumNous/opclink/relay/channel/openai"
-	relaycommon "github.com/QuantumNous/opclink/relay/common"
-	relayconstant "github.com/QuantumNous/opclink/relay/constant"
-	"github.com/QuantumNous/opclink/relaykit/dto"
-	"github.com/QuantumNous/opclink/relaykit/types"
-	"github.com/QuantumNous/opclink/service"
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/relay/channel"
+	openaichannel "github.com/QuantumNous/new-api/relay/channel/openai"
+	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	relayconstant "github.com/QuantumNous/new-api/relay/constant"
+	"github.com/QuantumNous/new-api/relaykit/dto"
+	"github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/QuantumNous/new-api/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -70,7 +70,7 @@ func applySystemPromptIfNeeded(c *gin.Context, info *relaycommon.RelayInfo, requ
 	}
 }
 
-func chatCompletionsViaResponses(c *gin.Context, info *relaycommon.RelayInfo, adaptor channel.Adaptor, request *dto.GeneralOpenAIRequest) (*dto.Usage, *types.OPCLinkError) {
+func chatCompletionsViaResponses(c *gin.Context, info *relaycommon.RelayInfo, adaptor channel.Adaptor, request *dto.GeneralOpenAIRequest) (*dto.Usage, *types.NewAPIError) {
 	chatJSON, err := common.Marshal(request)
 	if err != nil {
 		return nil, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
@@ -84,7 +84,7 @@ func chatCompletionsViaResponses(c *gin.Context, info *relaycommon.RelayInfo, ad
 	if len(info.ParamOverride) > 0 {
 		chatJSON, err = relaycommon.ApplyParamOverrideWithRelayInfo(chatJSON, info)
 		if err != nil {
-			return nil, opclinkErrorFromParamOverride(err)
+			return nil, newAPIErrorFromParamOverride(err)
 		}
 	}
 
@@ -152,33 +152,33 @@ func chatCompletionsViaResponses(c *gin.Context, info *relaycommon.RelayInfo, ad
 	upstreamStream := isResponsesEventStreamContentType(httpResp.Header.Get("Content-Type"))
 	info.IsStream = clientStream || upstreamStream
 	if httpResp.StatusCode != http.StatusOK {
-		opclinkErr := service.RelayErrorHandler(c.Request.Context(), httpResp, false)
-		service.ResetStatusCode(opclinkErr, statusCodeMappingStr)
-		return nil, opclinkErr
+		newApiErr := service.RelayErrorHandler(c.Request.Context(), httpResp, false)
+		service.ResetStatusCode(newApiErr, statusCodeMappingStr)
+		return nil, newApiErr
 	}
 
 	if upstreamStream && clientStream {
-		usage, opclinkErr := openaichannel.OaiResponsesToChatStreamHandler(c, info, httpResp)
-		if opclinkErr != nil {
-			service.ResetStatusCode(opclinkErr, statusCodeMappingStr)
-			return nil, opclinkErr
+		usage, newApiErr := openaichannel.OaiResponsesToChatStreamHandler(c, info, httpResp)
+		if newApiErr != nil {
+			service.ResetStatusCode(newApiErr, statusCodeMappingStr)
+			return nil, newApiErr
 		}
 		return usage, nil
 	}
 	if upstreamStream {
 		info.IsStream = false
-		usage, opclinkErr := openaichannel.OaiResponsesToChatBufferedStreamHandler(c, info, httpResp)
-		if opclinkErr != nil {
-			service.ResetStatusCode(opclinkErr, statusCodeMappingStr)
-			return nil, opclinkErr
+		usage, newApiErr := openaichannel.OaiResponsesToChatBufferedStreamHandler(c, info, httpResp)
+		if newApiErr != nil {
+			service.ResetStatusCode(newApiErr, statusCodeMappingStr)
+			return nil, newApiErr
 		}
 		return usage, nil
 	}
 
-	usage, opclinkErr := openaichannel.OaiResponsesToChatHandler(c, info, httpResp)
-	if opclinkErr != nil {
-		service.ResetStatusCode(opclinkErr, statusCodeMappingStr)
-		return nil, opclinkErr
+	usage, newApiErr := openaichannel.OaiResponsesToChatHandler(c, info, httpResp)
+	if newApiErr != nil {
+		service.ResetStatusCode(newApiErr, statusCodeMappingStr)
+		return nil, newApiErr
 	}
 	return usage, nil
 }

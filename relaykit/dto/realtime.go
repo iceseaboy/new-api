@@ -1,6 +1,6 @@
 package dto
 
-import "github.com/QuantumNous/opclink/relaykit/types"
+import "github.com/QuantumNous/new-api/relaykit/types"
 
 const (
 	RealtimeEventTypeError              = "error"

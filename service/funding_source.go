@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/QuantumNous/opclink/model"
+	"github.com/QuantumNous/new-api/model"
 )
 
 // ---------------------------------------------------------------------------

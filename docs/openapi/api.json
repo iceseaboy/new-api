@@ -5468,18 +5468,18 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT or PAT",
-        "description": "面板短期 JWT 或 User.AccessToken PAT；不再要求 OPCLink-User"
+        "description": "面板短期 JWT 或 User.AccessToken PAT；不再要求 New-Api-User"
       },
-      "OPCLinkUser1": {
+      "NewApiUser1": {
         "type": "apiKey",
         "in": "header",
-        "name": "OPCLink-User",
+        "name": "New-Api-User",
         "description": "已废弃且不再参与鉴权；PAT 客户端可以移除此请求头"
       },
       "RefreshCookie": {
         "type": "apiKey",
         "in": "cookie",
-        "name": "opclink_refresh",
+        "name": "new_api_refresh",
         "description": "仅 refresh/logout 使用的 HttpOnly、SameSite=Strict Cookie"
       },
       "SecurityProof": {

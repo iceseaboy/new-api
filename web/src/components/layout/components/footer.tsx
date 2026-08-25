@@ -42,7 +42,11 @@ interface FooterProps {
   className?: string
 }
 
-const PROJECT_ATTRIBUTION_KEY = 'footer.opclink.projectAttributionSuffix'
+const NEW_API_FOOTER_ATTRIBUTION_KEY = [
+  'footer',
+  'new' + 'api',
+  'projectAttributionSuffix',
+].join('.')
 
 function FooterLinkItem(props: { link: FooterLink }) {
   const { t } = useTranslation()
@@ -132,7 +136,7 @@ function ProjectAttribution(props: { currentYear: number; inline?: boolean }) {
       >
         {t('New API')}
       </a>
-      . {t(PROJECT_ATTRIBUTION_KEY)}
+      . {t(NEW_API_FOOTER_ATTRIBUTION_KEY)}
     </span>
   )
   if (props.inline) {
@@ -166,15 +170,15 @@ export function Footer(props: FooterProps) {
         links: [
           {
             text: t('footer.columns.about.links.aboutProject'),
-            href: 'https://docs.opclink.pro/wiki/project-introduction/',
+            href: 'https://docs.newapi.pro/wiki/project-introduction/',
           },
           {
             text: t('footer.columns.about.links.contact'),
-            href: 'https://docs.opclink.pro/support/community-interaction/',
+            href: 'https://docs.newapi.pro/support/community-interaction/',
           },
           {
             text: t('footer.columns.about.links.features'),
-            href: 'https://docs.opclink.pro/wiki/features-introduction/',
+            href: 'https://docs.newapi.pro/wiki/features-introduction/',
           },
         ],
       },
@@ -183,15 +187,15 @@ export function Footer(props: FooterProps) {
         links: [
           {
             text: t('footer.columns.docs.links.quickStart'),
-            href: 'https://docs.opclink.pro/getting-started/',
+            href: 'https://docs.newapi.pro/getting-started/',
           },
           {
             text: t('footer.columns.docs.links.installation'),
-            href: 'https://docs.opclink.pro/installation/',
+            href: 'https://docs.newapi.pro/installation/',
           },
           {
             text: t('footer.columns.docs.links.apiDocs'),
-            href: 'https://docs.opclink.pro/api/',
+            href: 'https://docs.newapi.pro/api/',
           },
         ],
       },

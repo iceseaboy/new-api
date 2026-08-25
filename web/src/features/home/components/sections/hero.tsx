@@ -49,7 +49,7 @@ export function Hero(props: HeroProps) {
   const { t } = useTranslation()
   const { status } = useStatus()
   const docsUrl =
-    (status?.docs_link as string | undefined) || 'https://docs.opclink.pro'
+    (status?.docs_link as string | undefined) || 'https://docs.newapi.pro'
 
   const renderDocsButton = () => {
     const isExternal = docsUrl.startsWith('http')

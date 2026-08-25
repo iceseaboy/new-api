@@ -9,15 +9,15 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/QuantumNous/opclink/common"
-	"github.com/QuantumNous/opclink/constant"
-	"github.com/QuantumNous/opclink/model"
-	"github.com/QuantumNous/opclink/pkg/billingexpr"
-	relaycommon "github.com/QuantumNous/opclink/relay/common"
-	"github.com/QuantumNous/opclink/relaykit/dto"
-	"github.com/QuantumNous/opclink/service"
-	"github.com/QuantumNous/opclink/setting/operation_setting"
-	"github.com/QuantumNous/opclink/types"
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/billingexpr"
+	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/relaykit/dto"
+	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -58,7 +58,7 @@ func TestValidateChannelProxy(t *testing.T) {
 	}
 }
 
-func TestValidateChannelRequiresOPCLinkBaseURL(t *testing.T) {
+func TestValidateChannelRequiresNewAPIBaseURL(t *testing.T) {
 	tests := []struct {
 		name    string
 		baseURL *string
@@ -66,13 +66,13 @@ func TestValidateChannelRequiresOPCLinkBaseURL(t *testing.T) {
 	}{
 		{name: "missing", wantErr: true},
 		{name: "blank", baseURL: common.GetPointer("  "), wantErr: true},
-		{name: "configured", baseURL: common.GetPointer("https://opclink.example")},
+		{name: "configured", baseURL: common.GetPointer("https://new-api.example")},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			channel := &model.Channel{
-				Type:    constant.ChannelTypeOPCLink,
+				Type:    constant.ChannelTypeNewAPI,
 				BaseURL: test.baseURL,
 			}
 
@@ -87,14 +87,14 @@ func TestValidateChannelRequiresOPCLinkBaseURL(t *testing.T) {
 	}
 }
 
-func TestOPCLinkChannelRegistration(t *testing.T) {
-	apiType, ok := common.ChannelType2APIType(constant.ChannelTypeOPCLink)
+func TestNewAPIChannelRegistration(t *testing.T) {
+	apiType, ok := common.ChannelType2APIType(constant.ChannelTypeNewAPI)
 
 	require.True(t, ok)
-	assert.Equal(t, constant.APITypeOPCLink, apiType)
-	assert.Equal(t, "OPCLink", constant.GetChannelTypeName(constant.ChannelTypeOPCLink))
-	require.Greater(t, len(constant.ChannelBaseURLs), constant.ChannelTypeOPCLink)
-	assert.Empty(t, constant.ChannelBaseURLs[constant.ChannelTypeOPCLink])
+	assert.Equal(t, constant.APITypeNewAPI, apiType)
+	assert.Equal(t, "OPCLink", constant.GetChannelTypeName(constant.ChannelTypeNewAPI))
+	require.Greater(t, len(constant.ChannelBaseURLs), constant.ChannelTypeNewAPI)
+	assert.Empty(t, constant.ChannelBaseURLs[constant.ChannelTypeNewAPI])
 }
 
 func TestResponsesCompactChannelSupport(t *testing.T) {
@@ -109,7 +109,7 @@ func TestResponsesCompactChannelSupport(t *testing.T) {
 		{name: "Codex", channelType: constant.ChannelTypeCodex, apiType: constant.APITypeCodex, want: true},
 		{name: "Advanced Custom", channelType: constant.ChannelTypeAdvancedCustom, apiType: constant.APITypeAdvancedCustom, want: true},
 		{name: "Sub2API", channelType: constant.ChannelTypeSub2API, apiType: constant.APITypeSub2API, want: true},
-		{name: "OPCLink", channelType: constant.ChannelTypeOPCLink, apiType: constant.APITypeOPCLink, want: true},
+		{name: "New API", channelType: constant.ChannelTypeNewAPI, apiType: constant.APITypeNewAPI, want: true},
 		{name: "Anthropic", channelType: constant.ChannelTypeAnthropic, apiType: constant.APITypeAnthropic, want: false},
 	}
 
@@ -130,7 +130,7 @@ func TestMultiprotocolGatewayEndpointTypes(t *testing.T) {
 		constant.EndpointTypeOpenAIAlphaSearch,
 	}
 
-	assert.Equal(t, want, common.GetEndpointTypesByChannelType(constant.ChannelTypeOPCLink, "gpt-5"))
+	assert.Equal(t, want, common.GetEndpointTypesByChannelType(constant.ChannelTypeNewAPI, "gpt-5"))
 	assert.Equal(t, want, common.GetEndpointTypesByChannelType(constant.ChannelTypeSub2API, "gpt-5"))
 }
 

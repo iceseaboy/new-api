@@ -4,8 +4,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	relaycommon "github.com/QuantumNous/opclink/relay/common"
-	"github.com/QuantumNous/opclink/setting/ratio_setting"
+	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"

@@ -1,6 +1,6 @@
 package operation_setting
 
-import "github.com/QuantumNous/opclink/setting/config"
+import "github.com/QuantumNous/new-api/setting/config"
 
 // 额度展示类型
 const (
@@ -24,7 +24,7 @@ type GeneralSetting struct {
 
 // 默认配置
 var generalSetting = GeneralSetting{
-	DocsLink:                   "https://docs.opclink.pro",
+	DocsLink:                   "https://docs.newapi.pro",
 	PingIntervalEnabled:        false,
 	PingIntervalSeconds:        60,
 	QuotaDisplayType:           QuotaDisplayTypeUSD,

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/QuantumNous/opclink/relaykit/types"
+	"github.com/QuantumNous/new-api/relaykit/types"
 )
 
 type EmbeddingOptions struct {

@@ -3,8 +3,8 @@ package submodel
 import (
 	"testing"
 
-	"github.com/QuantumNous/opclink/model"
-	relaycommon "github.com/QuantumNous/opclink/relay/common"
+	"github.com/QuantumNous/new-api/model"
+	relaycommon "github.com/QuantumNous/new-api/relay/common"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -4,8 +4,8 @@ import (
 	"math"
 	"testing"
 
-	relaycommon "github.com/QuantumNous/opclink/relay/common"
-	"github.com/QuantumNous/opclink/types"
+	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

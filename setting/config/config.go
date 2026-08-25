@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/new-api/common"
 )
 
 // ConfigManager 统一管理所有配置

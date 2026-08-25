@@ -21,7 +21,7 @@ For commercial licensing, please contact support@quantumnous.com
 // All label/name values are i18n keys; use t(value) when displaying.
 // ============================================================================
 
-export const CHANNEL_TYPE_OPCLINK = 60
+export const CHANNEL_TYPE_NEW_API = 60
 
 export const CHANNEL_TYPES = {
   0: 'Unknown',
@@ -398,7 +398,7 @@ export const FIELD_PASSTHROUGH_TYPES = new Set([
   57,
   58,
   59,
-  CHANNEL_TYPE_OPCLINK,
+  CHANNEL_TYPE_NEW_API,
 ])
 
 export const OPENAI_FIELD_PASSTHROUGH_TYPES = new Set([
@@ -406,14 +406,14 @@ export const OPENAI_FIELD_PASSTHROUGH_TYPES = new Set([
   57,
   58,
   59,
-  CHANNEL_TYPE_OPCLINK,
+  CHANNEL_TYPE_NEW_API,
 ])
 
 export const CLAUDE_FIELD_PASSTHROUGH_TYPES = new Set([
   14,
   58,
   59,
-  CHANNEL_TYPE_OPCLINK,
+  CHANNEL_TYPE_NEW_API,
 ])
 
 export const TYPE_TO_KEY_PROMPT: Record<number, string> = {

@@ -15,7 +15,7 @@ const DEV_FRONTEND_PORT = 5173; // Rsbuild dev server port
 function saveAndOpenErrorLog() {
   try {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const logFileName = `opclink-crash-${timestamp}.log`;
+    const logFileName = `new-api-crash-${timestamp}.log`;
     const logDir = app.getPath('logs');
     const logFilePath = path.join(logDir, logFileName);
     
@@ -25,7 +25,7 @@ function saveAndOpenErrorLog() {
     }
     
     // 写入日志
-    const logContent = `OPCLink 崩溃日志
+    const logContent = `New API 崩溃日志
 生成时间: ${new Date().toLocaleString('zh-CN')}
 平台: ${process.platform}
 架构: ${process.arch}
@@ -152,23 +152,23 @@ function getBinaryPath() {
   const platform = process.platform;
 
   if (isDev) {
-    const binaryName = platform === 'win32' ? 'opclink.exe' : 'opclink';
+    const binaryName = platform === 'win32' ? 'new-api.exe' : 'new-api';
     return path.join(__dirname, '..', binaryName);
   }
 
   let binaryName;
   switch (platform) {
     case 'win32':
-      binaryName = 'opclink.exe';
+      binaryName = 'new-api.exe';
       break;
     case 'darwin':
-      binaryName = 'opclink';
+      binaryName = 'new-api';
       break;
     case 'linux':
-      binaryName = 'opclink';
+      binaryName = 'new-api';
       break;
     default:
-      binaryName = 'opclink';
+      binaryName = 'new-api';
   }
 
   return path.join(process.resourcesPath, 'bin', binaryName);
@@ -261,7 +261,7 @@ function startServer() {
       fs.mkdirSync(dataDir, { recursive: true });
     }
 
-    env.SQLITE_PATH = path.join(dataDir, 'opclink.db');
+    env.SQLITE_PATH = path.join(dataDir, 'new-api.db');
     
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('📁 您的数据存储位置：');

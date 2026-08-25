@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/QuantumNous/opclink/relaykit/dto"
+	"github.com/QuantumNous/new-api/relaykit/dto"
 )
 
 type BaiduMessage struct {

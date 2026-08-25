@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/QuantumNous/opclink/common"
+	"github.com/QuantumNous/new-api/common"
 )
 
 func getTokenCacheKey(key string) string {

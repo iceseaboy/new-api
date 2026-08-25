@@ -1,11 +1,11 @@
 package sub2api
 
 import (
-	"github.com/QuantumNous/opclink/relay/channel/opclink"
+	"github.com/QuantumNous/new-api/relay/channel/newapi"
 )
 
 type Adaptor struct {
-	opclink.Adaptor
+	newapi.Adaptor
 }
 
 func (a *Adaptor) GetModelList() []string {

@@ -13,18 +13,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/QuantumNous/opclink/common"
-	"github.com/QuantumNous/opclink/model"
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/model"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-// 上游地址（basellm 元数据服务的固定路径段，与本项目无关）
-var (
-	upstreamMetaSegment = strings.Join([]string{"new", "api"}, "")
-	upstreamModelsURL   = "https://basellm.github.io/llm-metadata/api/" + upstreamMetaSegment + "/models.json"
-	upstreamVendorsURL  = "https://basellm.github.io/llm-metadata/api/" + upstreamMetaSegment + "/vendors.json"
+// 上游地址
+const (
+	upstreamModelsURL  = "https://basellm.github.io/llm-metadata/api/newapi/models.json"
+	upstreamVendorsURL = "https://basellm.github.io/llm-metadata/api/newapi/vendors.json"
 )
 
 func normalizeLocale(locale string) (string, bool) {
@@ -44,10 +43,10 @@ func getUpstreamBase() string {
 func getUpstreamURLs(locale string) (modelsURL, vendorsURL string) {
 	base := strings.TrimRight(getUpstreamBase(), "/")
 	if l, ok := normalizeLocale(locale); ok && l != "" {
-		return fmt.Sprintf("%s/api/i18n/%s/%s/models.json", base, l, upstreamMetaSegment),
-			fmt.Sprintf("%s/api/i18n/%s/%s/vendors.json", base, l, upstreamMetaSegment)
+		return fmt.Sprintf("%s/api/i18n/%s/newapi/models.json", base, l),
+			fmt.Sprintf("%s/api/i18n/%s/newapi/vendors.json", base, l)
 	}
-	return fmt.Sprintf("%s/api/%s/models.json", base, upstreamMetaSegment), fmt.Sprintf("%s/api/%s/vendors.json", base, upstreamMetaSegment)
+	return fmt.Sprintf("%s/api/newapi/models.json", base), fmt.Sprintf("%s/api/newapi/vendors.json", base)
 }
 
 type upstreamEnvelope[T any] struct {
