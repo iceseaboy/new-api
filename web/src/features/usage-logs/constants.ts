@@ -179,12 +179,12 @@ export const TASK_ACTIONS = {
   MUSIC: 'MUSIC', // 生成音乐
   LYRICS: 'LYRICS', // 生成歌词
 
-  // Video generation (camelCase)
-  GENERATE: 'generate', // 图生视频
-  TEXT_GENERATE: 'textGenerate', // 文生视频
-  FIRST_TAIL_GENERATE: 'firstTailGenerate', // 首尾生视频
-  REFERENCE_GENERATE: 'referenceGenerate', // 参照生视频
-  REMIX_GENERATE: 'remixGenerate', // 视频 Remix
+  // Video generation（后端 TaskModel2Dto 经 NormalizeTaskAction 恒输出规范新值）
+  GENERATE: 'image_to_video', // 图生视频
+  TEXT_GENERATE: 'text_to_video', // 文生视频
+  FIRST_TAIL_GENERATE: 'first_tail_to_video', // 首尾生视频
+  REFERENCE_GENERATE: 'reference_to_video', // 参照生视频
+  REMIX_GENERATE: 'remix', // 视频 Remix
 } as const
 
 /**
@@ -205,6 +205,7 @@ export const TASK_STATUS = {
  */
 export const TASK_PLATFORMS = {
   SUNO: 'suno',
+  SUNOAPI: 'sunoapi',
   KLING: 'kling',
   RUNWAY: 'runway',
   LUMA: 'luma',
@@ -300,6 +301,12 @@ export const TASK_ACTION_MAPPINGS: Record<string, StatusMapping> = {
     label: 'Video Remix',
     variant: 'blue',
   },
+  // 旧动作值别名（防御性：仅当上游数据未经 DTO 归一时出现）
+  generate: { label: 'Image to Video', variant: 'blue' },
+  textGenerate: { label: 'Text to Video', variant: 'blue' },
+  firstTailGenerate: { label: 'First/Last Frame to Video', variant: 'blue' },
+  referenceGenerate: { label: 'Reference Video', variant: 'blue' },
+  remixGenerate: { label: 'Video Remix', variant: 'blue' },
 }
 
 /**
@@ -320,6 +327,7 @@ export const TASK_STATUS_MAPPINGS: Record<string, StatusMapping> = {
  */
 export const TASK_PLATFORM_MAPPINGS: Record<string, StatusMapping> = {
   [TASK_PLATFORMS.SUNO]: { label: 'suno', variant: 'green' },
+  [TASK_PLATFORMS.SUNOAPI]: { label: 'sunoapi', variant: 'green' },
   [TASK_PLATFORMS.KLING]: { label: 'kling', variant: 'blue' },
   [TASK_PLATFORMS.RUNWAY]: { label: 'runway', variant: 'violet' },
   [TASK_PLATFORMS.LUMA]: { label: 'luma', variant: 'orange' },

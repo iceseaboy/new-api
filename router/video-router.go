@@ -8,27 +8,27 @@ import (
 )
 
 func SetVideoRouter(router *gin.Engine) {
-	// Video proxy: accepts either session auth (dashboard) or token auth (API clients)
-	videoProxyRouter := router.Group("/v1")
-	videoProxyRouter.Use(middleware.RouteTag("relay"))
-	videoProxyRouter.Use(middleware.TokenOrUserAuth())
-	{
-		videoProxyRouter.GET("/videos/:task_id/content", controller.VideoProxy)
-	}
+	videoSharedRouter := router.Group("/v1")
+	videoSharedRouter.Use(middleware.RouteTag("relay"))
+	videoSharedRouter.Use(middleware.TokenAuth())
+	videoSharedRouter.Use(middleware.SystemPerformanceCheck())
+	videoSharedRouter.POST(
+		"/video/generations",
+		middleware.PinTaskPluginEndpoint(),
+		middleware.TaskPluginEndpointOnly(middleware.ModelRequestRateLimit()),
+		middleware.PrepareTaskPluginEndpoint(),
+		middleware.Distribute(),
+		func(c *gin.Context) {
+			controller.RelayTaskPluginEndpoint(c, controller.RelayTask)
+		},
+	)
 
 	videoV1Router := router.Group("/v1")
 	videoV1Router.Use(middleware.RouteTag("relay"))
 	videoV1Router.Use(middleware.TokenAuth(), middleware.Distribute())
 	{
-		videoV1Router.POST("/video/generations", controller.RelayTask)
 		videoV1Router.GET("/video/generations/:task_id", controller.RelayTaskFetch)
 		videoV1Router.POST("/videos/:video_id/remix", controller.RelayTask)
-	}
-	// openai compatible API video routes
-	// docs: https://platform.openai.com/docs/api-reference/videos/create
-	{
-		videoV1Router.POST("/videos", controller.RelayTask)
-		videoV1Router.GET("/videos/:task_id", controller.RelayTaskFetch)
 	}
 
 	// Seedance 素材资产 API：免费透传 + 多租户归属校验
@@ -43,6 +43,9 @@ func SetVideoRouter(router *gin.Engine) {
 		seedanceV1Router.GET("/assets", controller.SeedanceAssetList)
 	}
 
+	// 内置 Go 任务适配器的原生路由（kling/jimeng 官方 API 形态）。
+	// 上游已将这些平台迁往 JS 插件的声明式路由；本仓库继续由 Go 适配器承载，
+	// 对应工厂插件在注册表中被跳过（见 relay/relay_adaptor.go）。
 	klingV1Router := router.Group("/kling/v1")
 	klingV1Router.Use(middleware.RouteTag("relay"))
 	klingV1Router.Use(middleware.KlingRequestConvert(), middleware.TokenAuth(), middleware.Distribute())

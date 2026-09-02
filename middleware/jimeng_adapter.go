@@ -47,7 +47,7 @@ func JimengRequestConvert() func(c *gin.Context) {
 		_ = common.ReplaceBodyStorage(c, jsonData)
 
 		if image, ok := originalReq["image"]; !ok || image == "" {
-			c.Set("action", constant.TaskActionTextGenerate)
+			c.Set("action", constant.TaskActionTextToVideo)
 		}
 
 		c.Request.URL.Path = "/v1/video/generations"

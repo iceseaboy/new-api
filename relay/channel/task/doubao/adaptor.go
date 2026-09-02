@@ -132,7 +132,7 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 func inferDoubaoAction(c *gin.Context) string {
 	var req relaycommon.TaskSubmitReq
 	if err := common.UnmarshalBodyReusable(c, &req); err != nil {
-		return constant.TaskActionGenerate
+		return constant.TaskActionImageToVideo
 	}
 	// 顶层 content[] 归一化进 metadata.content，使场景推断对两种入参形态一致
 	req.NormalizeForCompatibility()
@@ -177,13 +177,13 @@ func inferActionFromRequest(req *relaycommon.TaskSubmitReq) string {
 
 	switch {
 	case refVideo > 0 || refAudio > 0 || refImage > 0:
-		return constant.TaskActionReferenceGenerate
+		return constant.TaskActionReferenceToVideo
 	case firstFrame > 0 && lastFrame > 0:
-		return constant.TaskActionFirstTailGenerate
+		return constant.TaskActionFirstTailToVideo
 	case firstFrame > 0 || lastFrame > 0 || len(req.Images) > 0:
-		return constant.TaskActionGenerate
+		return constant.TaskActionImageToVideo
 	default:
-		return constant.TaskActionTextGenerate
+		return constant.TaskActionTextToVideo
 	}
 }
 
@@ -364,19 +364,17 @@ func (a *TaskAdaptor) DoRequest(c *gin.Context, info *relaycommon.RelayInfo, req
 }
 
 // DoResponse handles upstream response, returns taskID etc.
-func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (taskID string, taskData []byte, taskErr *taskdto.TaskError) {
+func (a *TaskAdaptor) ParseResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*channel.TaskSubmitResponse, *taskdto.TaskError) {
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		taskErr = service.TaskErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError)
-		return
+		return nil, service.TaskErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError)
 	}
 	_ = resp.Body.Close()
 
 	// Parse Doubao response
 	var dResp responsePayload
 	if err := common.Unmarshal(responseBody, &dResp); err != nil {
-		taskErr = service.TaskErrorWrapper(errors.Wrapf(err, "body: %s", responseBody), "unmarshal_response_body_failed", http.StatusInternalServerError)
-		return
+		return nil, service.TaskErrorWrapper(errors.Wrapf(err, "body: %s", responseBody), "unmarshal_response_body_failed", http.StatusInternalServerError)
 	}
 
 	if dResp.ID == "" {
@@ -390,8 +388,7 @@ func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *rela
 		}
 		if uerr := common.Unmarshal(responseBody, &relaySubmit); uerr == nil {
 			if relaySubmit.Error != nil && relaySubmit.Error.Message != "" {
-				taskErr = service.TaskErrorWrapperLocal(fmt.Errorf("%s", relaySubmit.Error.Message), "task_failed", http.StatusBadRequest)
-				return
+				return nil, service.TaskErrorWrapperLocal(fmt.Errorf("%s", relaySubmit.Error.Message), "task_failed", http.StatusBadRequest)
 			}
 			if relaySubmit.TaskID == "" {
 				relaySubmit.TaskID = relaySubmit.ID
@@ -401,8 +398,7 @@ func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *rela
 	}
 	// 上游未返回任务 ID 必须判失败，否则产生永远 NOT_START 的幽灵任务且预扣费不退
 	if dResp.ID == "" {
-		taskErr = service.TaskErrorWrapper(fmt.Errorf("upstream did not return task_id: %s", string(responseBody)), "invalid_response", http.StatusInternalServerError)
-		return
+		return nil, service.TaskErrorWrapper(fmt.Errorf("upstream did not return task_id: %s", string(responseBody)), "invalid_response", http.StatusInternalServerError)
 	}
 
 	ov := dto.NewOpenAIVideo()
@@ -411,8 +407,11 @@ func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *rela
 	ov.CreatedAt = time.Now().Unix()
 	ov.Model = info.OriginModelName
 
-	c.JSON(http.StatusOK, ov)
-	return dResp.ID, responseBody, nil
+	return &channel.TaskSubmitResponse{
+		UpstreamTaskID: dResp.ID,
+		TaskData:       responseBody,
+		ClientResponse: ov,
+	}, nil
 }
 
 // FetchTask fetch task status

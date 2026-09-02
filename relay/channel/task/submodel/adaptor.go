@@ -492,7 +492,7 @@ func (a *TaskAdaptor) AdjustBillingOnComplete(task *model.Task, _ *relaycommon.T
 		rawCost = (float64(usage.PromptTokens)*h3ContextIRPromptUSDPerM +
 			float64(usage.CompletionTokens)*h3ContextIRCompletionUSDPerM) / 1_000_000 *
 			common.QuotaPerUnit * bc.GroupRatio
-	case task.Action == constant.TaskActionRemix:
+	case constant.NormalizeTaskAction(task.Action) == constant.TaskActionRemix:
 		if bc.ModelPrice <= 0 || usage.TotalSeconds <= 0 {
 			return 0
 		}
@@ -525,27 +525,23 @@ func (a *TaskAdaptor) DoRequest(c *gin.Context, info *relaycommon.RelayInfo, req
 	return channel.DoTaskApiRequest(a, c, info, requestBody)
 }
 
-func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (taskID string, taskData []byte, taskErr *taskdto.TaskError) {
+func (a *TaskAdaptor) ParseResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*channel.TaskSubmitResponse, *taskdto.TaskError) {
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		taskErr = service.TaskErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError)
-		return
+		return nil, service.TaskErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError)
 	}
 	_ = resp.Body.Close()
 
 	var submitResp h3SubmitResponse
 	if err := common.Unmarshal(responseBody, &submitResp); err != nil {
-		taskErr = service.TaskErrorWrapper(errors.Wrapf(err, "body: %s", responseBody), "unmarshal_response_body_failed", http.StatusInternalServerError)
-		return
+		return nil, service.TaskErrorWrapper(errors.Wrapf(err, "body: %s", responseBody), "unmarshal_response_body_failed", http.StatusInternalServerError)
 	}
 
 	if submitResp.Error != nil {
-		taskErr = service.TaskErrorWrapper(fmt.Errorf("%s: %s", submitResp.Error.Type, submitResp.Error.Message), "h3_api_error", resp.StatusCode)
-		return
+		return nil, service.TaskErrorWrapper(fmt.Errorf("%s: %s", submitResp.Error.Type, submitResp.Error.Message), "h3_api_error", resp.StatusCode)
 	}
 	if submitResp.TaskID == "" {
-		taskErr = service.TaskErrorWrapper(fmt.Errorf("task_id is empty, body: %s", responseBody), "invalid_response", http.StatusInternalServerError)
-		return
+		return nil, service.TaskErrorWrapper(fmt.Errorf("task_id is empty, body: %s", responseBody), "invalid_response", http.StatusInternalServerError)
 	}
 
 	openAIResp := dto.NewOpenAIVideo()
@@ -557,9 +553,11 @@ func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *rela
 	}
 	openAIResp.Status = dto.VideoStatusQueued
 	openAIResp.CreatedAt = common.GetTimestamp()
-	c.JSON(http.StatusOK, openAIResp)
-
-	return submitResp.TaskID, responseBody, nil
+	return &channel.TaskSubmitResponse{
+		UpstreamTaskID: submitResp.TaskID,
+		TaskData:       responseBody,
+		ClientResponse: openAIResp,
+	}, nil
 }
 
 func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy string) (*http.Response, error) {

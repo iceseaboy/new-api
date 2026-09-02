@@ -27,10 +27,10 @@ func TestConvertToH3Request(t *testing.T) {
 
 	t.Run("image to video first frame no forced ratio", func(t *testing.T) {
 		req, err := convertToH3Request(nil, relaycommon.TaskSubmitReq{
-			Model:  "MiniMax-H3",
-			Prompt: "wave goodbye",
-			Image:  "https://example.com/a.jpg",
-			Size:   "2k",
+			Model:   "MiniMax-H3",
+			Prompt:  "wave goodbye",
+			Image:   "https://example.com/a.jpg",
+			Size:    "2k",
 			Seconds: "8",
 		})
 		require.NoError(t, err)
