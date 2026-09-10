@@ -212,6 +212,41 @@ func hasCustomPathPrefix(baseURL string) bool {
 	return u.Path != "" && u.Path != "/"
 }
 
+// hoistMetadataToTopLevel 把 metadata 内的键补写到请求顶层（顶层已存在的键不覆盖）。
+// 中继上游存在两种读法：一类只认顶层的 content/resolution/ratio 等字段，另一类从
+// metadata 读取。TaskSubmitReq 只有部分字段是一等成员，其余生成参数仅存在于 metadata，
+// 因此顶层与 metadata 同时保留，两类下游都能取到完整请求。
+func hoistMetadataToTopLevel(data []byte) []byte {
+	var body map[string]json.RawMessage
+	if common.Unmarshal(data, &body) != nil {
+		return data
+	}
+	rawMeta, ok := body["metadata"]
+	if !ok {
+		return data
+	}
+	var meta map[string]json.RawMessage
+	if common.Unmarshal(rawMeta, &meta) != nil {
+		return data
+	}
+	changed := false
+	for k, v := range meta {
+		if _, exists := body[k]; exists {
+			continue
+		}
+		body[k] = v
+		changed = true
+	}
+	if !changed {
+		return data
+	}
+	merged, err := common.Marshal(body)
+	if err != nil {
+		return data
+	}
+	return merged
+}
+
 // BuildRequestHeader sets required headers.
 func (a *TaskAdaptor) BuildRequestHeader(_ *gin.Context, req *http.Request, _ *relaycommon.RelayInfo) error {
 	req.Header.Set("Content-Type", "application/json")
@@ -329,7 +364,6 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 	if isNewAPIRelay(a.apiKey, a.baseURL) {
 		relayReq := req
 		relayReq.NormalizeForCompatibility()
-		relayReq.Content = nil
 		if info.IsModelMapped {
 			relayReq.Model = info.UpstreamModelName
 		} else {
@@ -339,7 +373,7 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 		if err != nil {
 			return nil, err
 		}
-		return bytes.NewReader(data), nil
+		return bytes.NewReader(hoistMetadataToTopLevel(data)), nil
 	}
 
 	body, err := a.convertToRequestPayload(&req)

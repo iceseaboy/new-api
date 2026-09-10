@@ -476,11 +476,27 @@ func updateVideoSingleTask(ctx context.Context, adaptor TaskPollingAdaptor, ch *
 		taskResult.Progress = t.Progress
 		taskResult.Reason = t.FailReason
 		task.Data = t.Data
-		// 中继上游的 TaskDto 不携带上游真实结果 URL（private_data 不外发），
-		// 成功而无 URL 时交给适配器从内层原生数据提取，否则会回填自指代理地址
-		if taskResult.Status == string(model.TaskStatusSuccess) && taskResult.Url == "" && len(t.Data) > 0 {
-			if inner, innerErr := adaptor.ParseTaskResult(t.Data); innerErr == nil && inner.Url != "" {
-				taskResult.Url = inner.Url
+		// 中继上游的 TaskDto 既不携带上游真实结果 URL（private_data 不外发），
+		// 也不携带 usage/输出分辨率。成功时统一交给适配器从内层原生数据补齐：
+		// 缺 URL 会回填自指代理地址；缺 usage 会让按 token 计费的任务永远停在
+		// 预扣费金额（不触发差额结算）。
+		if taskResult.Status == string(model.TaskStatusSuccess) && len(t.Data) > 0 {
+			if inner, innerErr := adaptor.ParseTaskResult(t.Data); innerErr == nil && inner != nil {
+				if taskResult.Url == "" {
+					taskResult.Url = inner.Url
+				}
+				if taskResult.TotalTokens == 0 {
+					taskResult.TotalTokens = inner.TotalTokens
+				}
+				if taskResult.CompletionTokens == 0 {
+					taskResult.CompletionTokens = inner.CompletionTokens
+				}
+				if taskResult.Resolution == "" {
+					taskResult.Resolution = inner.Resolution
+				}
+				if len(taskResult.UsageFacts) == 0 {
+					taskResult.UsageFacts = inner.UsageFacts
+				}
 			}
 		}
 	} else if taskResult, err = adaptor.ParseTaskResult(responseBody); err != nil {

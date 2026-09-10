@@ -3,8 +3,11 @@ package doubao
 import (
 	"testing"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func contentItem(typ, role string) map[string]interface{} {
@@ -174,4 +177,25 @@ func TestIsNewAPIRelay(t *testing.T) {
 			}
 		})
 	}
+}
+
+// 中继上游分两类读法：只认顶层字段的与从 metadata 读的。TaskSubmitReq 只有部分
+// 生成参数是一等成员（resolution/ratio 等仅存在于 metadata），若不补写顶层，
+// 只读顶层的中继上游会拿不到 content 与生成参数，静默退化成纯文生视频且按默认档计费。
+func TestHoistMetadataToTopLevelKeepsBothReadPaths(t *testing.T) {
+	body := []byte(`{"prompt":"hi","model":"m","duration":4,"metadata":{"resolution":"480p","ratio":"9:16","content":[{"type":"text","text":"hi"}],"duration":4}}`)
+
+	var got map[string]any
+	require.NoError(t, common.Unmarshal(hoistMetadataToTopLevel(body), &got))
+
+	assert.Equal(t, "480p", got["resolution"], "顶层应补出 resolution")
+	assert.Equal(t, "9:16", got["ratio"], "顶层应补出 ratio")
+	assert.NotNil(t, got["content"], "顶层应补出 content")
+	assert.NotNil(t, got["metadata"], "metadata 必须原样保留，兼容只读 metadata 的下游")
+	assert.EqualValues(t, 4, got["duration"], "顶层已有的键不被 metadata 覆盖")
+}
+
+func TestHoistMetadataToTopLevelNoMetadataIsUnchanged(t *testing.T) {
+	body := []byte(`{"prompt":"hi","model":"m"}`)
+	assert.JSONEq(t, string(body), string(hoistMetadataToTopLevel(body)))
 }
