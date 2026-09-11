@@ -58,6 +58,11 @@ func InitChannelCache() {
 		}
 		groups := strings.Split(channel.Group, ",")
 		for _, group := range groups {
+			// 渠道的分组可能在 abilities 表里没有任何记录（直接改库、建渠道时写 abilities 半途失败），
+			// 此时内层 map 尚未创建，直接赋值会 panic 并让进程每个同步周期崩一次
+			if _, ok := newGroup2model2channels[group]; !ok {
+				newGroup2model2channels[group] = make(map[string][]int)
+			}
 			models := strings.Split(channel.Models, ",")
 			for _, model := range models {
 				if _, ok := newGroup2model2channels[group][model]; !ok {
