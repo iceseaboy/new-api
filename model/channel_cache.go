@@ -56,14 +56,16 @@ func InitChannelCache() {
 		if channel.Status != common.ChannelStatusEnabled {
 			continue // skip disabled channels
 		}
-		groups := strings.Split(channel.Group, ",")
-		for _, group := range groups {
-			// 渠道的分组可能在 abilities 表里没有任何记录（直接改库、建渠道时写 abilities 半途失败），
-			// 此时内层 map 尚未创建，直接赋值会 panic 并让进程每个同步周期崩一次
+		groups := strings.SplitSeq(channel.Group, ",")
+		for group := range groups {
+			// A group may have no row in the abilities table at all (direct DB edits,
+			// a channel whose ability rows failed to be written). The inner map is
+			// only pre-created from abilities above, so guard it here or the
+			// assignment below panics and the process crashes on every sync tick.
 			if _, ok := newGroup2model2channels[group]; !ok {
 				newGroup2model2channels[group] = make(map[string][]int)
 			}
-			models := strings.Split(channel.Models, ",")
+			models := channel.GetModels()
 			for _, model := range models {
 				if _, ok := newGroup2model2channels[group][model]; !ok {
 					newGroup2model2channels[group][model] = make([]int, 0)
@@ -138,7 +140,7 @@ func GetRandomSatisfiedChannel(
 
 	// If no channels found, try to find channels with the normalized model name.
 	if len(channels) == 0 {
-		normalizedModel := ratio_setting.FormatMatchingModelName(model)
+		normalizedModel := ratio_setting.RoutingMatchModelName(model)
 		channels, _ = filterCandidateIDs(group2model2channels[group][normalizedModel], model, filters)
 	}
 

@@ -449,11 +449,11 @@ func (a *TaskAdaptor) ParseResponse(c *gin.Context, resp *http.Response, info *r
 }
 
 // FetchTask fetch task status
-func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy string) (*http.Response, error) {
-	taskID, ok := body["task_id"].(string)
-	if !ok {
+func (a *TaskAdaptor) FetchTask(baseUrl, key string, task *model.Task, proxy string) (*http.Response, error) {
+	if task == nil || task.TaskID == "" {
 		return nil, fmt.Errorf("invalid task_id")
 	}
+	taskID := task.TaskID
 
 	uri := fmt.Sprintf("%s/api/v3/contents/generations/tasks/%s", baseUrl, taskID)
 	if isNewAPIRelay(key, baseUrl) {
@@ -520,7 +520,7 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 	return &r, nil
 }
 
-func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) {
+func (a *TaskAdaptor) ParseTaskResult(_ *model.Task, _ *http.Response, respBody []byte) (*relaycommon.TaskInfo, error) {
 	// 优先尝试 new-api 中继信封（TaskDto 格式）；非中继响应会因状态不合法而回退到火山原生解析
 	if relayResult, err := parseNewAPIRelayTaskResult(respBody); err == nil {
 		return relayResult, nil

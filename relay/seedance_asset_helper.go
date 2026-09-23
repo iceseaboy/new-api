@@ -14,8 +14,8 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/relay/channel"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/relaykit/types"
+	"github.com/QuantumNous/new-api/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -341,9 +341,8 @@ func identifySeedanceEndpoint(path string) string {
 
 func postConsumeSeedanceAsset(c *gin.Context, info *relaycommon.RelayInfo, endpoint string) {
 	tokenName := c.GetString("token_name")
-	other := map[string]any{
-		"seedance_asset_endpoint": endpoint,
-	}
+	other := model.NewLogOther()
+	other.SetPublic("seedance_asset_endpoint", endpoint)
 
 	logContent := fmt.Sprintf("Seedance 素材 API %s（免费）", endpoint)
 	model.RecordConsumeLog(c, info.UserId, model.RecordConsumeLogParams{

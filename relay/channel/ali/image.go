@@ -96,6 +96,7 @@ func oaiImage2AliImageRequest(info *relaycommon.RelayInfo, request dto.ImageRequ
 
 	return &imageRequest, nil
 }
+
 // aliImagePriceTiers 各图片模型分辨率档相对 1K 基准价的计费倍率。
 var aliImagePriceTiers = map[string]map[string]float64{
 	"vidu/viduq2-fast_reference2image": {"1K": 1}, // 仅 1K 档

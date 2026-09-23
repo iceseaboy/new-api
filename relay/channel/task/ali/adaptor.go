@@ -739,11 +739,11 @@ func (a *TaskAdaptor) ParseResponse(c *gin.Context, resp *http.Response, info *r
 }
 
 // FetchTask 查询任务状态
-func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy string) (*http.Response, error) {
-	taskID, ok := body["task_id"].(string)
-	if !ok {
+func (a *TaskAdaptor) FetchTask(baseUrl, key string, task *model.Task, proxy string) (*http.Response, error) {
+	if task == nil || task.TaskID == "" {
 		return nil, fmt.Errorf("invalid task_id")
 	}
+	taskID := task.TaskID
 
 	uri := fmt.Sprintf("%s/api/v1/tasks/%s", baseUrl, taskID)
 
@@ -770,7 +770,7 @@ func (a *TaskAdaptor) GetChannelName() string {
 }
 
 // ParseTaskResult 解析任务结果
-func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) {
+func (a *TaskAdaptor) ParseTaskResult(_ *model.Task, _ *http.Response, respBody []byte) (*relaycommon.TaskInfo, error) {
 	var aliResp AliVideoResponse
 	if err := common.Unmarshal(respBody, &aliResp); err != nil {
 		return nil, errors.Wrap(err, "unmarshal task result failed")

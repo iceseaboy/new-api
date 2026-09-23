@@ -102,7 +102,7 @@ func TestParseTaskResultStatusMapping(t *testing.T) {
 		{`{"task":{"id":"1","status":"cancelled"}}`, model.TaskStatusFailure, "", "task cancelled"},
 	}
 	for _, tc := range cases {
-		info, err := a.ParseTaskResult([]byte(tc.body))
+		info, err := a.ParseTaskResult(nil, nil, []byte(tc.body))
 		require.NoError(t, err)
 		assert.Equal(t, string(tc.wantStatus), info.Status)
 		assert.Equal(t, tc.wantURL, info.Url)

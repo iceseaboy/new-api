@@ -266,13 +266,13 @@ func (a *TaskAdaptor) ParseResponse(c *gin.Context, resp *http.Response, info *r
 }
 
 // FetchTask fetch task status
-func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy string) (*http.Response, error) {
-	taskID, ok := body["task_id"].(string)
-	if !ok {
+func (a *TaskAdaptor) FetchTask(baseUrl, key string, task *model.Task, proxy string) (*http.Response, error) {
+	if task == nil || task.TaskID == "" {
 		return nil, fmt.Errorf("invalid task_id")
 	}
-	action, ok := body["action"].(string)
-	if !ok {
+	taskID := task.TaskID
+	action := task.Action
+	if action == "" {
 		return nil, fmt.Errorf("invalid action")
 	}
 	path := lo.Ternary(action == constant.TaskActionImageToVideo, "/v1/videos/image2video", "/v1/videos/text2video")
@@ -386,7 +386,7 @@ func (a *TaskAdaptor) createJWTTokenWithKey(apiKey string) (string, error) {
 	return token.SignedString([]byte(secretKey))
 }
 
-func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) {
+func (a *TaskAdaptor) ParseTaskResult(_ *model.Task, _ *http.Response, respBody []byte) (*relaycommon.TaskInfo, error) {
 	taskInfo := &relaycommon.TaskInfo{}
 	resPayload := responsePayload{}
 	err := common.Unmarshal(respBody, &resPayload)

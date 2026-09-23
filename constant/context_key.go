@@ -66,8 +66,9 @@ const (
 	ContextKeyAdminRejectReason ContextKey = "admin_reject_reason"
 
 	// ContextKeyLanguage stores the user's language preference for i18n
-	ContextKeyLanguage ContextKey = "language"
-	ContextKeyIsStream ContextKey = "is_stream"
+	ContextKeyLanguage             ContextKey = "language"
+	ContextKeyIsStream             ContextKey = "is_stream"
+	ContextKeyResponseStreamStatus ContextKey = "response_stream_status"
 
 	// ContextKeyAuditLogged marks that the current request has already recorded
 	// a manage/operation audit log inside the handler. When set, the admin-audit
@@ -79,4 +80,8 @@ const (
 	// video input, threaded from the adaptor's EstimateBilling into the persisted
 	// TaskBillingContext so settlement can recompute price by actual output resolution.
 	ContextKeyTaskVideoHasInput ContextKey = "task_video_has_input"
+	// ContextKeyTokenAuditParams contains only the API token operation's safe metadata.
+	ContextKeyTokenAuditParams ContextKey = "token_audit_params"
+	// ContextKeyTokenAuditSucceeded disambiguates token responses that exceed the audit buffer.
+	ContextKeyTokenAuditSucceeded ContextKey = "token_audit_succeeded"
 )

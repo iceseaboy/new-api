@@ -16,7 +16,6 @@ import (
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/QuantumNous/new-api/service"
-	"github.com/QuantumNous/new-api/setting/model_setting"
 
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"
@@ -29,13 +28,6 @@ type Adaptor struct {
 const aliAnthropicMessagesModelsEnv = "ALI_ANTHROPIC_MESSAGES_MODELS"
 const defaultAliAnthropicMessagesModels = "qwen,deepseek-v4,kimi,glm,minimax-m"
 
-/*
-	var syncModels = []string{
-		"z-image",
-		"qwen-image",
-		"wan2.6",
-	}
-*/
 func supportsAliAnthropicMessages(modelName string) bool {
 	normalizedModelName := strings.ToLower(strings.TrimSpace(modelName))
 	if normalizedModelName == "" {
@@ -55,6 +47,10 @@ func aliAnthropicMessagesModelPatterns() []string {
 	})
 }
 
+// syncModels lists the Bailian image models served by the synchronous
+// multimodal-generation endpoint (no async task polling). Upstream dropped the
+// configurable qwen setting together with its Go image path; the fork keeps the
+// Go path, so the former default list lives here.
 var syncModels = []string{
 	"z-image",
 	"qwen-image",
@@ -62,7 +58,7 @@ var syncModels = []string{
 }
 
 func isSyncImageModel(modelName string) bool {
-	return model_setting.IsSyncImageModel(modelName)
+	return lo.SomeBy(syncModels, func(m string) bool { return strings.Contains(modelName, m) })
 }
 
 // isViduImageModel 判断是否为百炼平台上走 DashScope 异步 image-generation 端点、
