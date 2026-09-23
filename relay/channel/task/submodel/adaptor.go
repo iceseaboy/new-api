@@ -561,10 +561,11 @@ func (a *TaskAdaptor) ParseResponse(c *gin.Context, resp *http.Response, info *r
 }
 
 func (a *TaskAdaptor) FetchTask(baseUrl, key string, task *model.Task, proxy string) (*http.Response, error) {
-	if task == nil || task.TaskID == "" {
+	// 轮询必须用上游真实任务 ID：托管/中继模式下本地 task_id 与上游 ID 不同
+	if task == nil || task.GetUpstreamTaskID() == "" {
 		return nil, fmt.Errorf("invalid task_id")
 	}
-	taskID := task.TaskID
+	taskID := task.GetUpstreamTaskID()
 
 	uri := fmt.Sprintf("%s/v2/query/video_generation/%s", baseUrl, taskID)
 	req, err := http.NewRequest(http.MethodGet, uri, nil)

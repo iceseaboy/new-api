@@ -1,6 +1,10 @@
 package doubao
 
 import (
+	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/service"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
@@ -198,4 +202,25 @@ func TestHoistMetadataToTopLevelKeepsBothReadPaths(t *testing.T) {
 func TestHoistMetadataToTopLevelNoMetadataIsUnchanged(t *testing.T) {
 	body := []byte(`{"prompt":"hi","model":"m"}`)
 	assert.JSONEq(t, string(body), string(hoistMetadataToTopLevel(body)))
+}
+
+// The host stores its own task_id and keeps the upstream one in PrivateData;
+// polling must query upstream by the latter or relay/hosted tasks are reported
+// as not found and refunded.
+func TestFetchTaskQueriesUpstreamTaskID(t *testing.T) {
+	var gotPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	t.Cleanup(server.Close)
+	service.InitHttpClient()
+
+	task := &model.Task{TaskID: "task_local", PrivateData: model.TaskPrivateData{UpstreamTaskID: "task_upstream"}}
+	resp, err := (&TaskAdaptor{}).FetchTask(server.URL, "sk-test", task, "")
+	require.NoError(t, err)
+	_ = resp.Body.Close()
+	assert.Contains(t, gotPath, "task_upstream")
+	assert.NotContains(t, gotPath, "task_local")
 }

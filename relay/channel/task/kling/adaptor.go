@@ -267,11 +267,12 @@ func (a *TaskAdaptor) ParseResponse(c *gin.Context, resp *http.Response, info *r
 
 // FetchTask fetch task status
 func (a *TaskAdaptor) FetchTask(baseUrl, key string, task *model.Task, proxy string) (*http.Response, error) {
-	if task == nil || task.TaskID == "" {
+	// 轮询必须用上游真实任务 ID：托管/中继模式下本地 task_id 与上游 ID 不同
+	if task == nil || task.GetUpstreamTaskID() == "" {
 		return nil, fmt.Errorf("invalid task_id")
 	}
-	taskID := task.TaskID
-	action := task.Action
+	taskID := task.GetUpstreamTaskID()
+	action := constant.NormalizeTaskAction(task.Action)
 	if action == "" {
 		return nil, fmt.Errorf("invalid action")
 	}
