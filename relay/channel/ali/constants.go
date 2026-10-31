@@ -8,6 +8,7 @@ var ModelList = []string{
 	"qwq-32b",
 	"qwen3-235b-a22b",
 	"text-embedding-v1",
+	"qwen3-vl-embedding",
 	"gte-rerank-v2",
 	"vidu/viduq2-fast_reference2image",
 	"vidu/viduq2-pro_reference2image",

@@ -350,7 +350,7 @@ func postConsumeSeedanceAsset(c *gin.Context, info *relaycommon.RelayInfo, endpo
 		ModelName:      info.OriginModelName,
 		TokenName:      tokenName,
 		Quota:          0,
-		Content:        logContent,
+		Content:        []*common.Message{common.NewMessage(logContent)},
 		TokenId:        info.TokenId,
 		UseTimeSeconds: int(time.Since(info.StartTime).Seconds()),
 		Group:          info.UsingGroup,
